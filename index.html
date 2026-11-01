@@ -1,0 +1,120 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Handicap de Golf — WHS</title>
+<style>
+  :root {
+    --green: #1b5e3b; --green-light: #e8f3ec; --cream: #faf8f3;
+    --ink: #1d2b22; --muted: #6b7a70; --danger: #b3392e; --line: #dde5df;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: -apple-system, "Segoe UI", Roboto, sans-serif; background: var(--cream); color: var(--ink); }
+  header {
+    background: linear-gradient(135deg, var(--green), #2e7d52);
+    color: #fff; padding: 1.2rem 1.5rem;
+  }
+  header h1 { font-size: 1.3rem; }
+  header p { opacity: .85; font-size: .85rem; margin-top: .2rem; }
+  main { max-width: 1100px; margin: 1.5rem auto; padding: 0 1rem; display: grid; grid-template-columns: 1fr 1fr; gap: 1.2rem; }
+  @media (max-width: 800px) { main { grid-template-columns: 1fr; } }
+  section {
+    background: #fff; border: 1px solid var(--line); border-radius: 12px;
+    padding: 1.2rem; box-shadow: 0 1px 3px rgba(0,0,0,.05);
+  }
+  section h2 { font-size: 1rem; color: var(--green); margin-bottom: .8rem; }
+  section h4 { font-size: .85rem; color: var(--muted); margin: .6rem 0 .4rem; }
+  .full { grid-column: 1 / -1; }
+  input, select {
+    padding: .5rem .6rem; border: 1px solid var(--line); border-radius: 8px;
+    font-size: .9rem; width: 100%; margin-bottom: .5rem;
+  }
+  input[type=number] { width: 100%; }
+  button {
+    background: var(--green); color: #fff; border: none; border-radius: 8px;
+    padding: .5rem .9rem; cursor: pointer; font-size: .85rem;
+  }
+  button:hover { background: #144a2e; }
+  .btn-danger { background: #eee; color: var(--danger); padding: .25rem .55rem; }
+  .btn-danger:hover { background: #fbe5e3; }
+  .row { display: flex; gap: .5rem; flex-wrap: wrap; }
+  .row > * { flex: 1; min-width: 120px; }
+  ul { list-style: none; }
+  .player-item, .course-item, .round-item {
+    display: flex; align-items: center; gap: .7rem; padding: .55rem .4rem;
+    border-bottom: 1px solid var(--line); font-size: .9rem; flex-wrap: wrap;
+  }
+  .p-index { font-weight: 700; color: var(--green); font-size: 1.05rem; }
+  .p-count, .c-meta, .r-date { color: var(--muted); font-size: .8rem; }
+  .p-name, .c-name, .r-player { flex: 1; font-weight: 600; }
+  .holes { display: grid; grid-template-columns: repeat(3, 1fr); gap: .45rem; }
+  .hole label { font-size: .72rem; color: var(--muted); display: block; margin-bottom: .15rem; }
+  .hole input { text-align: center; margin-bottom: 0; }
+  .half-card { margin-bottom: .8rem; }
+  .r-nums { display: flex; gap: .9rem; font-size: .85rem; color: var(--muted); }
+  .r-nums b { color: var(--ink); }
+  .r-diff b { color: var(--green); }
+  .r-actions { margin-left: auto; display: flex; gap: .3rem; }
+  .r-actions button { padding: .25rem .6rem; font-size: .78rem; background: #f0f4f1; color: var(--ink); }
+  .note { font-size: .75rem; color: var(--muted); margin-top: .6rem; line-height: 1.5; }
+  .badge {
+    display: inline-block; background: var(--green-light); color: var(--green);
+    font-size: .72rem; padding: .15rem .5rem; border-radius: 999px; margin-left: .4rem;
+  }
+</style>
+</head>
+<body>
+<header>
+  <h1>⛳ Handicap de Golf <span class="badge" style="background:rgba(255,255,255,.2);color:#fff">World Handicap System</span></h1>
+  <p>Handicap con una sola tarjeta · Módulo 1 de 3 — Campos y Apuestas próximamente · <span id="today"></span></p>
+</header>
+
+<main>
+  <section>
+    <h2>Jugadores</h2>
+    <div class="row">
+      <input id="player-name" placeholder="Nombre del jugador">
+      <button id="add-player-btn" style="flex:0 0 auto">Agregar</button>
+    </div>
+    <ul id="players-list"></ul>
+    <p class="note">El Handicap Index aparece junto a cada jugador. Con <b>una sola tarjeta</b> ya se emite el index oficial WHS (diferencial de esa ronda). Máximo 54.</p>
+  </section>
+
+  <section>
+    <h2>Campos</h2>
+    <div class="row">
+      <input id="course-name" placeholder="Nombre del campo">
+      <input id="course-cr" type="number" step="0.1" placeholder="Course Rating (ej 72.1)">
+      <input id="course-slope" type="number" placeholder="Slope (ej 131)">
+      <button id="add-course-btn" style="flex:0 0 auto">Agregar</button>
+    </div>
+    <ul id="courses-list"></ul>
+    <p class="note">Par e hándicap de hoyo por defecto: estándar (36/36). La edición por hoyo llega con el módulo de <b>Campos</b>.</p>
+  </section>
+
+  <section class="full" id="tarjeta">
+    <h2>Nueva tarjeta</h2>
+    <div class="row">
+      <select id="round-player"></select>
+      <select id="round-course"></select>
+      <input id="round-date" type="date">
+      <button id="save-round-btn" style="flex:0 0 auto">Guardar tarjeta</button>
+    </div>
+    <div id="score-grid"></div>
+    <p class="note">
+      <b>Ajuste WHS (AGS):</b> cada hoyo se capa en Net Double Bogey (par + 2 + golpes asignados). Sin index previo, el cap es par + 2.
+      <b>Diferencial</b> = (AGS − Course Rating) × 113 ÷ Slope. El index se recalcula con todas las tarjetas del jugador (tabla WHS de promedios).
+    </p>
+  </section>
+
+  <section class="full">
+    <h2>Historial de tarjetas</h2>
+    <ul id="rounds-list"></ul>
+  </section>
+</main>
+
+<script src="handicap.js"></script>
+<script src="app.js"></script>
+</body>
+</html>
