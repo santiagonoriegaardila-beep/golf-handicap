@@ -81,6 +81,8 @@ const Sync = (() => {
     catch (e) { setStatus('sin-conexion', e.message); return; }
 
     if (!remote) {
+      // Este celular ya estaba sincronizado y la familia no aparece: el código cambió.
+      if (rev > 0) { retired(); return; }
       // Familia nueva: este celular la crea con lo que tenga.
       rev = 0; base = null;
       await flush();
@@ -126,12 +128,22 @@ const Sync = (() => {
       announce();
       setStatus('en-vivo');
     } catch (e) {
+      if (Cloud.isRetired(e)) { retired(); return; }
       setStatus(navigator.onLine === false || /fetch|network|Failed/i.test(e.message) ? 'sin-conexion' : 'error', e.message);
     } finally {
       busy = false;
       if (pullAgain) { pullAgain = false; pull(); }
       else if (again || (status === 'en-vivo' && dirty())) schedulePush(300);
     }
+  }
+
+  /** El código de familia fue reemplazado: desconectar (los datos locales quedan) y pedir el nuevo. */
+  function retired() {
+    disconnectRealtime(); clearInterval(pollTimer);
+    cfg = { ...cfg, code: '' }; write(CFG_KEY, cfg);
+    rev = 0; base = null; saveMeta();
+    setStatus('local', 'El código de familia cambió. Escribe el código nuevo.');
+    hooks.onRetired && hooks.onRetired();
   }
 
   function schedulePush(ms = 600) {

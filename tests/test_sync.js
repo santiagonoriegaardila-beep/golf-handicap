@@ -80,6 +80,13 @@ eq('sin cambios locales', Store.merge3(base, c(base), R), R);
   let threw = false;
   try { await Cloud.save({ ...cfg, code: 'corto' }, 0, s0); } catch (e) { threw = true; }
   eq('código corto rechazado', threw, true);
+  eq('código sin distinguir mayúsculas/espacios', (await Cloud.get({ ...cfg, code: ' Familia-Prueba ' })).rev, 3);
+  srv.changeCode('FAMILIA-PRUEBA', 'CODIGO-NUEVO-1');
+  eq('código viejo ya no ve nada', await Cloud.get(cfg), null);
+  let retiredErr = null;
+  try { await Cloud.save(cfg, 0, s0); } catch (e) { retiredErr = e; }
+  eq('código viejo no puede recrear la familia', Cloud.isRetired(retiredErr), true);
+  eq('código nuevo conserva los datos', (await Cloud.get({ ...cfg, code: 'codigo-nuevo-1' })).data.players.length, 2);
   eq('canal no revela el código', Cloud.channelName('familia-prueba').includes('familia'), false);
 
   srv.close();

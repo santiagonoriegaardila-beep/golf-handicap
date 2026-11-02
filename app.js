@@ -719,10 +719,11 @@ function joinBanner() {
   if (i.configured || !fixed.supabaseUrl || !fixed.supabaseKey) return '';
   return `<section class="card join-card">
     <h2>👨‍👩‍👧 Conéctate a la familia</h2>
+    ${i.error ? `<p class="hint" style="margin-top:0;color:var(--neg)"><b>${esc(i.error)}</b></p>` : ''}
     <p class="hint" style="margin-top:0">Este celular <b>no está conectado</b>: lo que anotes aquí no lo ve nadie más y no ves lo de los demás.
     Abre el <b>link de invitación</b> que te mandaron o escribe el código de familia:</p>
     <div class="row" style="margin-top:8px">
-      <input type="text" class="grow" id="join-code" placeholder="Código de familia (ej. golf-Ab12…)" autocomplete="off" autocapitalize="off" spellcheck="false">
+      <input type="text" class="grow" id="join-code" placeholder="Código de familia" autocomplete="off" autocapitalize="off" spellcheck="false">
       <button class="btn" data-act="join-family">Conectar</button>
     </div>
   </section>`;
@@ -1186,7 +1187,8 @@ document.addEventListener('DOMContentLoaded', () => {
       syncBadge();
       const el = $('#sync-status'); const [dot, txt] = SYNC_LABEL[i.status] || ['⚪', i.status];
       if (el) el.textContent = `${dot} ${txt}`;
-    }
+    },
+    onRetired: () => { render(); toast('El código de familia cambió: escribe el nuevo'); }
   }, storage || memStore);
 });
 
