@@ -25,15 +25,26 @@ Si una regla de la familia cambia, se cambia aquí y en `bets.js` (y en `tests/t
 
 ## 3. Robin (grupos de 4, parejas rotativas cada 6 hoyos)
 
-Con los jugadores en orden 1, 2, 3, 4:
+Con 8 jugadores se forman 2 grupos (1–4 y 5–8, según el orden de la ronda). Quien no complete grupo de 4 queda fuera del robin (sí juega el war).
 
-| Hoyos | Equipo A | Equipo B |
-|---|---|---|
-| 1–6   | 1 + 2 | 3 + 4 |
-| 7–12  | 1 + 3 | 2 + 4 |
-| 13–18 | 1 + 4 | 2 + 3 |
+**Parejas.** Cada jugador hace pareja una vez con cada uno de los otros tres. Hay dos modos (se elige al crear la ronda):
 
-Con 8 jugadores se forman 2 grupos (1–4 y 5–8). Quien no complete grupo de 4 queda fuera del robin (sí juega el war).
+- **Manual en el campo** (por defecto, la costumbre de la familia):
+  | Hoyos | Cómo se decide |
+  |---|---|
+  | 1–6   | En el hoyo 1, el **1º y el 3º en embocar** juegan juntos. |
+  | 7–12  | En el hoyo 7, el **primero de cada pareja en llegar al green** juegan juntos. |
+  | 13–18 | La combinación que queda (automática). |
+
+  Se marcan desde la pantalla de la ronda en cualquier momento del bloque (también después del hoyo 1); los puntos se recalculan con esas parejas desde el primer hoyo del bloque. Mientras un bloque no tenga parejas, no suma puntos ni plata. Si se cambian las del bloque 1 y chocan con las del bloque 2, las del bloque 2 se borran para volver a elegirlas.
+- **Automático por orden** (jugadores 1, 2, 3, 4):
+  | Hoyos | Equipo A | Equipo B |
+  |---|---|---|
+  | 1–6   | 1 + 2 | 3 + 4 |
+  | 7–12  | 1 + 3 | 2 + 4 |
+  | 13–18 | 1 + 4 | 2 + 3 |
+
+  En una ronda automática se puede pasar a manual tocando “✎ Parejas”.
 
 **Los 6 puntos por hoyo:**
 
@@ -48,11 +59,12 @@ Con 8 jugadores se forman 2 grupos (1–4 y 5–8). Quien no complete grupo de 4
 
 Los logros los puede hacer cualquier jugador de cada equipo y se suman (dos sandys = 2 puntos). Un mismo golpe puede dar varios puntos (ej. birdie desde bunker = sandy + birdie).
 
-**Plata del robin (por bloque de 6):** `diferencia = puntos A − puntos B`.
-Cada jugador de A gana `diferencia × base`; cada jugador de B pierde lo mismo.
-Opcional: *bono por bloque* — cuando el bloque termina, cada jugador del equipo con más puntos gana además el bono (y cada rival lo pierde).
+**Plata del robin (por bloque de 6 hoyos):**
+- **Base**: el equipo con más puntos en el bloque gana la base — cada jugador del equipo ganador recibe la base y cada jugador del perdedor la paga. Empate en puntos: nadie gana la base.
+- **Valor por punto**: además, cada jugador gana/pierde `(puntos A − puntos B) × valor por punto`.
+- La base solo se paga cuando el bloque está completo; los puntos se van sumando hoyo a hoyo.
 
-> Si en la familia "la base" significa otra cosa (por ejemplo, un valor fijo por ganar el bloque), poner `pointValue = 0` y usar `segmentValue`.
+Ejemplo: base $10.000, punto $2.000, bloque 9–5 → cada ganador +$10.000 + 4 × $2.000 = **+$18.000**, cada perdedor −$18.000.
 
 ## 4. War (todos contra todos, un solo ganador)
 

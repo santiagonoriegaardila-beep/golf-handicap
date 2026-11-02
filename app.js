@@ -113,8 +113,20 @@ function newDraft() {
     date: today(),
     courseId: (last && courseById(last.courseId) ? last.courseId : state.courses[0]?.id) || '',
     players: [],
-    bets: last ? clone(last.bets) : Bets.defaultBets()
+    bets: draftBets(last)
   };
+}
+
+/* Apuestas para una ronda nueva: copia la última ronda, pero el robin de rondas
+ * anteriores a "base por bloque + valor por punto" toma los valores nuevos. */
+function draftBets(last) {
+  const def = Bets.defaultBets();
+  if (!last) return def;
+  const b = clone(last.bets);
+  const r = b.robin || {};
+  b.robin = r.pairingMode ? { ...def.robin, ...r, groups: [], pairings: [] } : { ...def.robin, enabled: r.enabled !== false, puttsMode: r.puttsMode || 'suma' };
+  b.war = { ...def.war, ...(b.war || {}) };
+  return b;
 }
 
 function draftPlayer(playerId, course) {
@@ -176,7 +188,11 @@ function renderSetup() {
   const groups = [];
   for (let i = 0; i + 4 <= ids.length; i += 4) groups.push(ids.slice(i, i + 4));
   const leftover = ids.length % 4;
-  const pairingsHtml = groups.map((g, gi) => {
+  const manual = rb.pairingMode === 'manual';
+  const pairingsHtml = manual ? `<p class="hint" style="margin-top:0">Se definen en el campo desde la pantalla de la ronda:<br>
+      <b>H1–6:</b> el 1º y el 3º en embocar el hoyo 1 juegan juntos.<br>
+      <b>H7–12:</b> el primero de cada pareja en llegar al green del hoyo 7 juegan juntos.<br>
+      <b>H13–18:</b> la combinación que queda (automática).</p>` : groups.map((g, gi) => {
     const pr = Bets.robinPairings(g);
     return `${groups.length > 1 ? `<h3>Grupo ${gi + 1}</h3>` : ''}` + pr.map((t, si) => `<div class="pairing">
         <span class="muted">H${si * 6 + 1}–${si * 6 + 6}</span>
@@ -203,7 +219,7 @@ function renderSetup() {
     </div>
     ${d.players.length ? `<h3>Marcas y ventajas</h3>${playersHtml}
       <p class="hint">PH (Playing Handicap) = Index × Slope/113 + (CR − Par) de <b>su marca</b>, × ${Math.round(state.settings.allowance * 100)}%.
-      Categoría <b>alto</b> si PH &gt; ${state.settings.highHcpThreshold}. El orden define las parejas del robin.</p>` : ''}
+      Categoría <b>alto</b> si PH &gt; ${state.settings.highHcpThreshold}. El orden define los grupos del robin (y las parejas si son automáticas).</p>` : ''}
   </section>
 
   <div class="grid2">
@@ -212,18 +228,23 @@ function renderSetup() {
         <label class="switch"><input type="checkbox" ${rb.enabled ? 'checked' : ''} data-ch="draft-robin" data-k="enabled"> Activo</label></h2>
       ${rb.enabled ? `
       <div class="row">
-        <label class="f">Base (valor del punto)<input type="number" inputmode="numeric" value="${rb.pointValue}" data-ch="draft-robin" data-k="pointValue"></label>
-        <label class="f">Bono por ganar el bloque<input type="number" inputmode="numeric" value="${rb.segmentValue}" data-ch="draft-robin" data-k="segmentValue"></label>
+        <label class="f">Base (por ganar los 6 hoyos)<input type="number" inputmode="numeric" value="${rb.segmentValue}" data-ch="draft-robin" data-k="segmentValue"></label>
+        <label class="f">Valor por punto<input type="number" inputmode="numeric" value="${rb.pointValue}" data-ch="draft-robin" data-k="pointValue"></label>
         <label class="f">Putts del equipo
           <select data-ch="draft-robin" data-k="puttsMode">
             <option value="suma" ${rb.puttsMode === 'suma' ? 'selected' : ''}>Suma de los dos</option>
             <option value="baja" ${rb.puttsMode === 'baja' ? 'selected' : ''}>Mejor de los dos</option>
           </select></label>
       </div>
-      <h3>Parejas por bloque de 6</h3>
-      ${groups.length ? pairingsHtml : '<p class="hint">Se necesitan 4 jugadores (o grupos de 4).</p>'}
+      <h3>Parejas por bloque de 6 <span class="spacer"></span></h3>
+      <div class="seg" style="margin-bottom:8px">
+        <button class="${manual ? 'on' : ''}" data-act="draft-pairing-mode" data-v="manual">Manual en el campo</button>
+        <button class="${!manual ? 'on' : ''}" data-act="draft-pairing-mode" data-v="auto">Automático por orden</button>
+      </div>
+      ${groups.length || manual ? pairingsHtml : '<p class="hint">Se necesitan 4 jugadores (o grupos de 4).</p>'}
       ${leftover && groups.length ? `<p class="hint">⚠️ ${leftover} jugador(es) quedan fuera del robin (no completan grupo de 4).</p>` : ''}
-      <p class="hint">6 puntos por hoyo: <b>suma</b> (neto), <b>putts</b>, <b>baja</b> (neto), <b>sandy</b>, <b>birdie</b> y <b>paraguas</b> (gross).</p>` : ''}
+      <p class="hint">En cada bloque de 6 hoyos: el equipo con más puntos gana <b>la base</b> (cada jugador), y además se paga la <b>diferencia de puntos × valor por punto</b>. Empate en puntos: nadie gana la base.<br>
+      6 puntos por hoyo: <b>suma</b> (neto), <b>putts</b>, <b>baja</b> (neto), <b>sandy</b>, <b>birdie</b> y <b>paraguas</b> (gross).</p>` : ''}
     </section>
 
     <section class="card">
@@ -266,16 +287,27 @@ function renderPlay(g) {
   // Equipo robin del hoyo actual (para colorear tarjetas)
   const teamOf = {};
   let robinBanner = '';
+  let pickers = '';
   if (res.robin) {
     const si = Math.floor(h / 6);
-    res.robin.groups.forEach(gr => {
+    res.robin.groups.forEach((gr, gi) => {
       const s = gr.segments[si];
+      const editSi = Math.min(si, 1);
+      if (!s.teams) {
+        robinBanner += `<div class="robin-banner">🔄 <b>H${s.holes[0]}–${s.holes[1]}</b> <span class="muted">Parejas por definir</span></div>`;
+        const missing = gr.segments[0].teams ? 1 : 0;
+        pickers += pairingPicker(g, gi, gr.players, missing);
+        return;
+      }
       s.teams[0].forEach(id => { teamOf[id] = 'a'; });
       s.teams[1].forEach(id => { teamOf[id] = 'b'; });
       robinBanner += `<div class="robin-banner">🔄 <b>H${s.holes[0]}–${s.holes[1]}</b>
         <span class="team-a">${s.teams[0].map(pName).map(esc).join(' + ')} ${s.points[0]}</span>
         <span class="muted">–</span>
-        <span class="team-b">${s.points[1]} ${s.teams[1].map(pName).map(esc).join(' + ')}</span></div>`;
+        <span class="team-b">${s.points[1]} ${s.teams[1].map(pName).map(esc).join(' + ')}</span>
+        <span class="spacer" style="flex:1"></span>
+        <button class="btn ghost sm" data-act="edit-pairing" data-gi="${gi}" data-si="${editSi}">✎ Parejas</button></div>`;
+      if (ui.editPairing && ui.editPairing.gameId === g.id && ui.editPairing.gi === gi) pickers += pairingPicker(g, gi, gr.players, ui.editPairing.si);
     });
   }
 
@@ -344,12 +376,33 @@ function renderPlay(g) {
     </div>
     ${robinBanner}
   </section>
+  ${pickers}
   ${cards}
   ${renderLive(res, h)}
   <div class="row">
     <button class="btn ghost grow" data-act="tab" data-tab="apuestas">💰 Ver apuestas</button>
     <button class="btn grow" data-act="finish-game">🏁 Terminar ronda</button>
   </div>`;
+}
+
+const PAIRING_HINT = [
+  'Hoyo 1: el <b>1º y el 3º en embocar</b> juegan juntos.',
+  'Hoyo 7: el <b>primero de cada pareja en llegar al green</b> juegan juntos.'
+];
+function pairingPicker(g, gi, grp, si) {
+  const opts = Bets.robinPairingOptions(g.bets.robin, gi, grp, si);
+  const editing = ui.editPairing && ui.editPairing.gameId === g.id;
+  return `<section class="card join-card">
+    <h2>🔄 Parejas hoyos ${si * 6 + 1}–${si * 6 + 6}</h2>
+    <p class="hint" style="margin-top:0">${PAIRING_HINT[si]} Toca cómo quedaron:</p>
+    <div class="pair-opts">
+      ${opts.map(p => `<button class="pair-opt" data-act="set-pairing" data-gi="${gi}" data-si="${si}" data-partner="${esc(Bets.partnerOf(p, grp[0]))}">
+        <span class="team-a">${p[0].map(pName).map(esc).join(' + ')}</span><span class="muted">vs</span><span class="team-b">${p[1].map(pName).map(esc).join(' + ')}</span>
+      </button>`).join('')}
+    </div>
+    ${si === 1 ? '<p class="hint">Los hoyos 13–18 quedan con la combinación que falta.</p>' : ''}
+    ${editing ? '<button class="btn ghost sm" data-act="cancel-pairing" style="margin-top:8px">Cancelar</button>' : ''}
+  </section>`;
 }
 
 function renderLive(res, h) {
@@ -456,6 +509,7 @@ function renderRobin(res) {
       const rows = Bets.ROBIN_POINTS.map(pt => `<tr><td class="l">${pt.label}</td>
         <td class="${s.totals[0][pt.key] > s.totals[1][pt.key] ? 'win' : ''}">${s.totals[0][pt.key]}</td>
         <td class="${s.totals[1][pt.key] > s.totals[0][pt.key] ? 'win' : ''}">${s.totals[1][pt.key]}</td></tr>`).join('');
+      if (!s.teams) return `<div class="robin-seg"><div class="hdr"><b>Hoyos ${s.holes[0]}–${s.holes[1]}</b><span class="pill">parejas por definir</span></div></div>`;
       const holeRows = s.perHole.filter(x => x.played).map(x => `<td>${x.total[0]}–${x.total[1]}</td>`).join('');
       const amtA = s.money[s.teams[0][0]];
       return `<div class="robin-seg">
@@ -473,8 +527,8 @@ function renderRobin(res) {
       </div>`;
     }).join('')}`).join('');
   const excl = res.robin.excluded.length ? `<p class="hint">Fuera del robin: ${res.robin.excluded.map(pName).map(esc).join(', ')}</p>` : '';
-  return `<section class="card"><h2>🔄 Robin · base ${money(res.robin.config.pointValue, false)}/punto</h2>${segs}${excl}
-    <p class="hint">Cada jugador del equipo gana/pierde (puntos A − puntos B) × base${Number(res.robin.config.segmentValue) ? ' + bono del bloque' : ''}.</p></section>`;
+  return `<section class="card"><h2>🔄 Robin · base ${money(res.robin.config.segmentValue, false)} · ${money(res.robin.config.pointValue, false)}/punto</h2>${segs}${excl}
+    <p class="hint">Por bloque, cada jugador del equipo que gana se lleva la base + (diferencia de puntos × valor por punto); el rival paga lo mismo. Empate en puntos: no hay base.</p></section>`;
 }
 
 function renderScorecard(res) {
@@ -771,6 +825,7 @@ const ACT = {
     [d.players[i], d.players[j]] = [d.players[j], d.players[i]];
     render();
   },
+  'draft-pairing-mode': (el) => { ui.draft.bets.robin.pairingMode = el.dataset.v; render(); },
   'start-game': () => {
     const d = ui.draft;
     if (!d || d.players.length < 2) return toast('Elige al menos 2 jugadores');
@@ -786,7 +841,7 @@ const ACT = {
         playingHcp: p.playingHcp === '' || p.playingHcp == null ? null : Number(p.playingHcp),
         category: p.category || null
       })),
-      bets: { ...clone(d.bets), robin: { ...clone(d.bets.robin), groups } },
+      bets: { ...clone(d.bets), robin: { pairingMode: 'auto', ...clone(d.bets.robin), groups, pairings: [] } },
       scores: Object.fromEntries(ids.map(id => [id, Array(18).fill(null)]))
     };
     state.games.push(game);
@@ -833,6 +888,27 @@ const ACT = {
     const s = g.scores[pid][h] || (g.scores[pid][h] = { strokes: null, putts: null, bunker: false, water: false });
     s[k] = !s[k];
     persist(); render();
+  },
+  'edit-pairing': (el) => { ui.editPairing = { gameId: activeGame().id, gi: +el.dataset.gi, si: +el.dataset.si }; render(); },
+  'cancel-pairing': () => { ui.editPairing = null; render(); },
+  'set-pairing': (el) => {
+    const g = activeGame(); const cfg = g.bets.robin;
+    const gi = +el.dataset.gi, si = +el.dataset.si, partner = el.dataset.partner;
+    const grp = Bets.robinGroups(g)[gi];
+    if (cfg.pairingMode !== 'manual') {           // pasar de automático a manual conservando lo que había
+      const auto = Bets.robinPairings(grp);
+      cfg.pairings = cfg.pairings || [];
+      cfg.pairings[gi] = [auto[0], auto[1]];
+      cfg.pairingMode = 'manual';
+    }
+    cfg.pairings = cfg.pairings || [];
+    while (cfg.pairings.length <= gi) cfg.pairings.push([null, null]);
+    const cur = cfg.pairings[gi] || [null, null];
+    cur[si] = Bets.pairingFromPartner(grp, partner);
+    if (si === 0 && cur[1] && Bets.partnerOf(cur[1], grp[0]) === partner) cur[1] = null;
+    cfg.pairings[gi] = cur;
+    ui.editPairing = null;
+    persist(); render(); toast('Parejas guardadas');
   },
   'finish-game': () => {
     const g = activeGame();
@@ -1024,7 +1100,7 @@ const CH = {
   },
   'draft-robin': (el) => {
     const r = ui.draft.bets.robin; const k = el.dataset.k;
-    r[k] = el.type === 'checkbox' ? el.checked : (k === 'puttsMode' ? el.value : Number(el.value) || 0);
+    r[k] = el.type === 'checkbox' ? el.checked : (k === 'puttsMode' || k === 'pairingMode' ? el.value : Number(el.value) || 0);
     render();
   },
   'draft-war-on': (el) => { ui.draft.bets.war.enabled = el.checked; render(); },

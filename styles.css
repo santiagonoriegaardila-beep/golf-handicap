@@ -302,3 +302,10 @@ table.t .live { color: var(--accent); font-weight: 700; }
 .sync-badge { font-size: 11px; font-weight: 500; opacity: .9; margin-left: 6px; white-space: nowrap; }
 .full-span { grid-column: 1 / -1; }
 .join-card { border: 2px solid var(--accent); background: linear-gradient(0deg, var(--surface), var(--surface)), var(--accent); }
+.pair-opts { display: grid; gap: 8px; }
+.pair-opt {
+  display: grid; grid-template-columns: 1fr auto 1fr; gap: 8px; align-items: center; text-align: center;
+  padding: 14px 10px; border-radius: 12px; border: 1.5px solid var(--line); background: var(--surface-2);
+  font-size: 15px; cursor: pointer;
+}
+.pair-opt:hover { border-color: var(--brand-2); }
