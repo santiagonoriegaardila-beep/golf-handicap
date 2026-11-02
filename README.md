@@ -2,7 +2,7 @@
 
 App web interna para la familia: **handicap WHS**, **ventajas por marca** y las apuestas **Robin** y **War**, con liquidación de quién le paga a quién.
 
-**App:** https://santiagonoriegaardila-beep.github.io/golf-handicap/ (una vez activado GitHub Pages)
+**App:** https://santiagonoriegaardila-beep.github.io/golf-handicap/ — para entrar con los datos de la familia, abre el **link de invitación** (lo comparte cualquiera desde Ajustes).
 
 Los datos se sincronizan en **tiempo real** entre los celulares de la familia con Supabase; cada celular guarda una copia para anotar sin señal.
 Configuración paso a paso: [`docs/SUPABASE.md`](docs/SUPABASE.md).

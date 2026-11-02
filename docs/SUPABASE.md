@@ -1,5 +1,10 @@
 # Poner la app en línea y sincronizada (10 minutos)
 
+> **Estado actual:** ya está hecho. La app está publicada en GitHub Pages y el proyecto de Supabase
+> `golf-familia` (ref `ivrurzhzteaosmppwueq`, región us-east-1) tiene el esquema aplicado. `config.js`
+> trae la URL y la llave pública; el código de familia viaja solo en el link de invitación.
+> Esta guía queda como referencia por si hay que rehacerlo.
+
 Hay dos pasos: **(A)** publicar la página con GitHub Pages para tener una URL, y **(B)** conectar Supabase para que toda la familia vea lo mismo en tiempo real.
 
 ---
