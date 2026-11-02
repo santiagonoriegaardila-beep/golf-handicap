@@ -49,7 +49,17 @@ Hay dos pasos: **(A)** publicar la página con GitHub Pages para tener una URL, 
 ### 5. Invitar a la familia
 En **Ajustes** → **🔗 Link de invitación** → mándalo por WhatsApp. Quien lo abra queda conectado automáticamente (el link se guarda en su celular y se borra de la barra de direcciones).
 
-⚠️ **Quien tenga el link puede ver y editar.** Compártelo solo con la familia. Si se filtra, cambien el código de familia: en Ajustes → Desconectar → Conectar con un código nuevo (los datos se suben de nuevo desde ese celular) y manden el link nuevo.
+⚠️ **Quien tenga el código puede ver y editar.** Compártelo solo con la familia (nunca lo escriban en este repositorio, que es público).
+
+Los códigos **no distinguen mayúsculas ni espacios** (`abc def` = `ABCDEF`).
+
+### Cambiar el código de familia
+En Supabase → SQL Editor (los datos se conservan; solo cambia la llave):
+```sql
+select public.golf_change_code('CODIGO-VIEJO', 'CODIGO-NUEVO');   -- en MAYÚSCULAS y sin espacios
+```
+El código viejo queda **retirado**: los celulares que lo tenían se desconectan solos y piden el nuevo
+(su copia local no se borra), y nadie puede volver a crear una familia con él.
 
 ---
 

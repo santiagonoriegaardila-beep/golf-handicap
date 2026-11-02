@@ -22,6 +22,8 @@ export GOLF_FAMILY_CODE="<código de familia>"
 ```
 
 Con eso, en cualquier comando del CLI se usa la palabra **`nube`** en lugar de un archivo.
+El código no distingue mayúsculas ni espacios. Si se llama la API HTTP directo, enviar `p_code` **sin espacios y en MAYÚSCULAS** (así lo normalizan la app y el CLI).
+Un error que contenga `codigo_retirado` significa que el código cambió: pedir el nuevo al usuario.
 
 ### API HTTP directa (sin Node)
 

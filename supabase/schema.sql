@@ -37,6 +37,14 @@ create table if not exists public.golf_state_history (
 create index if not exists golf_state_history_family on public.golf_state_history (family_hash, rev desc);
 alter table public.golf_state_history enable row level security;
 
+-- Códigos retirados (cambiados por uno nuevo): impide que un celular con el
+-- código viejo cree una familia vacía por accidente.
+create table if not exists public.golf_retired (
+  family_hash text primary key,
+  retired_at  timestamptz not null default now()
+);
+alter table public.golf_retired enable row level security;
+
 create or replace function public.golf_hash(p_code text)
 returns text language sql immutable
 set search_path = public, extensions as $$
@@ -76,6 +84,9 @@ begin
   select * into cur from public.golf_state where family_hash = h for update;
 
   if not found then
+    if exists (select 1 from public.golf_retired where family_hash = h) then
+      raise exception 'codigo_retirado: este código de familia ya no se usa; pide el código nuevo';
+    end if;
     if p_rev <> 0 then
       return json_build_object('ok', false, 'rev', 0, 'data', null);
     end if;
@@ -118,6 +129,28 @@ set search_path = public, extensions as $$
   from public.golf_state_history
   where family_hash = public.golf_hash(p_code) and rev = p_rev;
 $$;
+
+-- Cambiar el código de una familia (solo administrador, desde el SQL Editor):
+--   select public.golf_change_code('CODIGO-VIEJO', 'CODIGO-NUEVO');
+-- Los códigos se guardan como los manda la app: sin espacios y en MAYÚSCULAS.
+create or replace function public.golf_change_code(p_old text, p_new text)
+returns json language plpgsql security definer
+set search_path = public, extensions as $$
+declare
+  ho text := public.golf_hash(p_old);
+  hn text := public.golf_hash(p_new);
+begin
+  if p_new is null or length(p_new) < 8 then raise exception 'El código nuevo debe tener al menos 8 caracteres'; end if;
+  if not exists (select 1 from public.golf_state where family_hash = ho) then raise exception 'El código viejo no existe'; end if;
+  if exists (select 1 from public.golf_state where family_hash = hn) then raise exception 'El código nuevo ya está en uso'; end if;
+  update public.golf_state set family_hash = hn where family_hash = ho;
+  update public.golf_state_history set family_hash = hn where family_hash = ho;
+  insert into public.golf_retired (family_hash) values (ho) on conflict do nothing;
+  delete from public.golf_retired where family_hash = hn;
+  return json_build_object('ok', true);
+end;
+$$;
+revoke all on function public.golf_change_code(text, text) from public, anon, authenticated;
 
 revoke all on function public.golf_get(text)                         from public;
 revoke all on function public.golf_save(text, bigint, jsonb, text)    from public;

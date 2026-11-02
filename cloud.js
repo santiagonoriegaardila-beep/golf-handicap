@@ -12,6 +12,9 @@
 })(typeof self !== 'undefined' ? self : this, function (Store) {
   'use strict';
 
+  /** Los códigos no distinguen mayúsculas ni espacios: "abc def" = "ABCDEF". */
+  function normCode(code) { return String(code || '').replace(/\s+/g, '').toUpperCase(); }
+
   function headers(cfg) {
     const h = { apikey: cfg.key, 'Content-Type': 'application/json' };
     if (/^eyJ/.test(cfg.key)) h.Authorization = 'Bearer ' + cfg.key; // llaves "anon" JWT clásicas
@@ -27,11 +30,11 @@
   }
 
   /** → null (familia nueva) | {rev, data, updated_at, updated_by} */
-  function get(cfg) { return rpc(cfg, 'golf_get', { p_code: cfg.code }); }
+  function get(cfg) { return rpc(cfg, 'golf_get', { p_code: normCode(cfg.code) }); }
 
   /** → {ok:true, rev} | {ok:false, rev, data} (alguien guardó antes: hay que mezclar) */
   function save(cfg, rev, data, by) {
-    return rpc(cfg, 'golf_save', { p_code: cfg.code, p_rev: rev, p_data: data, p_by: by || null });
+    return rpc(cfg, 'golf_save', { p_code: normCode(cfg.code), p_rev: rev, p_data: data, p_by: by || null });
   }
 
   /** Guarda `local` mezclando con lo que haya en la nube si alguien guardó antes.
@@ -51,13 +54,16 @@
   /** Nombre del canal realtime derivado del código (no revela el código). */
   function channelName(code) {
     let h = 2166136261;
-    for (const ch of String(code)) { h ^= ch.charCodeAt(0); h = Math.imul(h, 16777619) >>> 0; }
+    for (const ch of normCode(code)) { h ^= ch.charCodeAt(0); h = Math.imul(h, 16777619) >>> 0; }
     return 'golf-' + h.toString(36);
   }
 
   function isConfigured(cfg) {
-    return !!(cfg && cfg.url && cfg.key && cfg.code && String(cfg.code).length >= 8);
+    return !!(cfg && cfg.url && cfg.key && cfg.code && normCode(cfg.code).length >= 8);
   }
 
-  return { get, save, saveMerged, channelName, isConfigured };
+  /** ¿El error indica que el código fue cambiado por uno nuevo? */
+  const isRetired = (e) => /codigo_retirado/.test(String(e && e.message || e));
+
+  return { get, save, saveMerged, channelName, isConfigured, normCode, isRetired };
 });
