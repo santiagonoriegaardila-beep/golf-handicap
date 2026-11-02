@@ -141,8 +141,15 @@ GolfApp.sync.now()                         // forzar sincronización
           "category": null }           // null = automático; "bajo" | "alto"
       ],
       "bets": {
-        "robin": { "enabled": true, "pointValue": 5000, "segmentValue": 0,
-                   "puttsMode": "suma", "groups": [["p1","p2","p3","p4"]] },
+        "robin": { "enabled": true,
+                   "segmentValue": 10000,      // base: por ganar el bloque de 6 hoyos (cada jugador)
+                   "pointValue": 2000,         // por cada punto de diferencia en el bloque
+                   "puttsMode": "suma",        // "suma" | "baja"
+                   "pairingMode": "manual",    // "manual" | "auto" (falta = "auto", rondas viejas)
+                   "groups": [["p1","p2","p3","p4"]],
+                   // manual: por grupo [bloque 1-6, bloque 7-12]; null = por definir.
+                   // El bloque 13-18 es la combinación que queda y NO se guarda.
+                   "pairings": [ [ [["p1","p3"],["p2","p4"]], null ] ] },
         "war":   { "enabled": true, "participants": [],          // [] = todos
                    "match": { "front": 10000, "back": 10000, "total": 20000 },
                    "medal": { "front": 10000, "back": 10000, "total": 20000 },
@@ -199,7 +206,8 @@ GolfApp.sync.now()                         // forzar sincronización
 | “Anota: Santi hizo 5 con 2 putts en el 7, salió del bunker” | `node cli.js rondas nube` (ids) → `node cli.js score nube ultima p_santi 7 5 2 si no` |
 | “¿Cuánto debe Papá?” | `resultados nube` → `totals.<id>` y `transfers` |
 | “¿Cuál es el handicap de Mamá?” | `node cli.js handicap nube` |
-| “Cambia la base del robin a 10.000” | módulo Node: leer, editar `games[i].bets.robin.pointValue`, `Cloud.saveMerged` |
+| “En el hoyo 1 Santi y Pame quedaron juntos” | módulo Node: `game.bets.robin.pairingMode='manual'`, `pairings[0][0] = Bets.pairingFromPartner(grupo, idPame)` (grupo con Santi primero) → `Cloud.saveMerged` |
+| “Cambia la base del robin a 10.000” | módulo Node: leer, editar `games[i].bets.robin.segmentValue`, `Cloud.saveMerged` |
 | “Haz un respaldo” | `node cli.js bajar respaldo-$(date +%F).json` |
 
 ## 7. Archivos

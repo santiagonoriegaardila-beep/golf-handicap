@@ -83,7 +83,7 @@
       s.courses.push(sampleCourse());
       return s;
     }
-    if (raw.version === SCHEMA_VERSION) {
+    if (raw.version >= SCHEMA_VERSION) {   // v2 y posteriores comparten formato (campos nuevos son opcionales)
       const s = { ...defaultState(), ...raw };
       s.settings = { ...DEFAULT_SETTINGS, ...(raw.settings || {}) };
       return s;

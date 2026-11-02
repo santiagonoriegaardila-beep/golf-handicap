@@ -44,6 +44,9 @@ const game = {
   bets: B.defaultBets(),
   scores: {}
 };
+game.bets.robin.pairingMode = 'auto';
+game.bets.robin.pointValue = 5000;
+game.bets.robin.segmentValue = 0;
 // Todos scratch (PH 0). A hace 3 en todos, B 4, C 4, D 5. putts 2.
 const strokes = { A: 3, B: 4, C: 4, D: 5 };
 ids.forEach(id => { game.scores[id] = Array.from({ length: 18 }, () => ({ strokes: strokes[id], putts: 2 })); });
@@ -68,6 +71,31 @@ eq('Putts segundos 9: empate muere', pBack.status, 'muere');
 eq('Suma cero total', Math.round(Object.values(r.totals).reduce((a, b) => a + b, 0)), 0);
 eq('Transfers cuadran', r.transfers.reduce((a, t) => a + t.amount, 0),
   Object.values(r.totals).filter(v => v > 0).reduce((a, b) => a + b, 0));
+
+// Base por ganar el bloque + valor por punto
+game.bets.robin.pointValue = 2000; game.bets.robin.segmentValue = 10000;
+const rb = B.computeGame(state, game).robin.groups[0].segments[0];
+eq('Base + puntos: A gana 10000 + 17×2000', rb.money.A, 10000 + 17 * 2000);
+eq('Base + puntos: C paga lo mismo', rb.money.C, -(10000 + 17 * 2000));
+game.bets.robin.pointValue = 5000; game.bets.robin.segmentValue = 0;
+
+// Parejas manuales: H1 A+C (1º y 3º), H7 A+D, H13 lo que queda A+B
+game.bets.robin.pairingMode = 'manual';
+game.bets.robin.pairings = [];
+let rm = B.computeGame(state, game).robin.groups[0];
+eq('Manual sin definir → bloque 1 sin parejas', rm.segments[0].status, 'sin parejas');
+eq('Manual sin definir → no mueve plata', Object.values(rm.money).every(v => v === 0), true);
+eq('Opciones bloque 1 = 3', B.robinPairingOptions(game.bets.robin, 0, ids, 0).length, 3);
+game.bets.robin.pairings = [[[['A', 'C'], ['B', 'D']], null]];
+eq('Opciones bloque 2 = 2 (sin repetir)', B.robinPairingOptions(game.bets.robin, 0, ids, 1).map(p => B.partnerOf(p, 'A')), ['B', 'D']);
+game.bets.robin.pairings = [[[['A', 'C'], ['B', 'D']], [['D', 'A'], ['C', 'B']]]];
+rm = B.computeGame(state, game).robin.groups[0];
+eq('Manual bloque 1', rm.segments[0].teams, [['A', 'C'], ['B', 'D']]);
+eq('Manual bloque 2', rm.segments[1].teams, [['A', 'D'], ['B', 'C']]);
+eq('Bloque 3 = lo que queda', rm.segments[2].teams, [['A', 'B'], ['C', 'D']]);
+game.bets.robin.pairings = [[[['A', 'C'], ['B', 'D']], [['A', 'C'], ['B', 'D']]]];
+eq('Bloque 2 repetido se ignora', B.computeGame(state, game).robin.groups[0].segments[1].status, 'sin parejas');
+game.bets.robin.pairingMode = 'auto';
 
 // Ventaja: D con index 18 → PH 18 → neto 4 en todos → empata con B y C en neto
 game.players[3].index = 18;

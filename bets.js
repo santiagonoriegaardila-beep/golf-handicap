@@ -46,8 +46,10 @@
     return {
       robin: {
         enabled: true,
-        pointValue: 5000,      // "la base": valor de cada punto neto
-        segmentValue: 0,       // bono opcional al equipo que gana el bloque de 6
+        segmentValue: 10000,   // "la base": la gana cada jugador del equipo que gana el bloque de 6 hoyos
+        pointValue: 2000,      // valor de cada punto de diferencia en el bloque
+        pairingMode: 'manual', // 'manual' (se definen en el campo) | 'auto' (por orden)
+        pairings: [],          // manual: por grupo [bloque1, bloque2] = [[a,b],[c,d]]; el bloque 3 es lo que queda
         puttsMode: 'suma',     // 'suma' (putts del equipo) | 'baja' (mejor putts)
         groups: []             // [[p1,p2,p3,p4], ...] vacío = automático en orden
       },
@@ -157,6 +159,46 @@
     ];
   }
 
+  /** Compañero de `id` en un emparejamiento [[a,b],[c,d]]. */
+  function partnerOf(pairing, id) {
+    const t = pairing.find(team => team.includes(id));
+    return t ? t.find(x => x !== id) : null;
+  }
+
+  /** Emparejamiento a partir del compañero del primer jugador del grupo. */
+  function pairingFromPartner(g, partner) {
+    const a = [g[0], partner];
+    return [a, g.filter(id => !a.includes(id))];
+  }
+
+  function validPairing(p, g) {
+    if (!Array.isArray(p) || p.length !== 2 || !p.every(t => Array.isArray(t) && t.length === 2)) return false;
+    const ids = p.flat();
+    return new Set(ids).size === 4 && g.every(id => ids.includes(id));
+  }
+
+  /** Parejas de los 3 bloques de un grupo. En modo manual:
+   *  bloque 1 y 2 los define la familia en el campo (null = por definir);
+   *  el bloque 3 es la combinación que queda. */
+  function robinPairingsFor(cfg, gi, g) {
+    if (!cfg || cfg.pairingMode !== 'manual') return robinPairings(g);
+    const man = (cfg.pairings && cfg.pairings[gi]) || [];
+    const key = (p) => partnerOf(p, g[0]);
+    const p1 = validPairing(man[0], g) ? pairingFromPartner(g, key(man[0])) : null;
+    const p2 = p1 && validPairing(man[1], g) && key(man[1]) !== key(p1) ? pairingFromPartner(g, key(man[1])) : null;
+    const p3 = p1 && p2 ? pairingFromPartner(g, g.slice(1).find(id => id !== key(p1) && id !== key(p2))) : null;
+    return [p1, p2, p3];
+  }
+
+  /** Opciones válidas para el bloque `si` (0 o 1) dadas las parejas ya puestas. */
+  function robinPairingOptions(cfg, gi, g, si) {
+    const all = robinPairings(g);
+    if (si === 0) return all;
+    const cur = robinPairingsFor({ ...cfg, pairingMode: 'manual' }, gi, g);
+    if (!cur[0]) return [];
+    return all.filter(p => partnerOf(p, g[0]) !== partnerOf(cur[0], g[0]));
+  }
+
   function robinGroups(game) {
     const cfg = game.bets && game.bets.robin;
     const ids = game.players.map(p => p.playerId);
@@ -175,6 +217,14 @@
   function robinSegment(game, ctx, teams, holes, cfg) {
     const val = Number(cfg.pointValue) || 0;
     const bonus = Number(cfg.segmentValue) || 0;
+    if (!teams) {
+      const ids = Object.keys(ctx);
+      return {
+        holes: [holes[0] + 1, holes[holes.length - 1] + 1], teams: null,
+        totals: [emptyPts(), emptyPts()], points: [0, 0], diff: 0, played: 0, complete: false,
+        status: 'sin parejas', perHole: [], money: Object.fromEntries(ids.map(id => [id, 0]))
+      };
+    }
     const totals = [emptyPts(), emptyPts()];
     const perHole = [];
     let played = 0;
@@ -235,9 +285,9 @@
     return {
       config: cfg,
       excluded: game.players.map(p => p.playerId).filter(id => !inRobin.has(id)),
-      groups: groups.map(g => {
+      groups: groups.map((g, gi) => {
         const ctx = makeCtx(resolved, g, settings.strokeMode);
-        const pairings = robinPairings(g);
+        const pairings = robinPairingsFor(cfg, gi, g);
         const segments = ROBIN_SEGMENTS.map((holes, si) => robinSegment(game, ctx, pairings[si], holes, cfg));
         const money = Object.fromEntries(g.map(id => [id, 0]));
         segments.forEach(s => Object.entries(s.money).forEach(([id, v]) => { money[id] += v; }));
@@ -410,6 +460,7 @@
       L.push('🔄 Robin');
       result.robin.groups.forEach((g, gi) => {
         g.segments.forEach(s => {
+          if (!s.teams) { L.push(`H${s.holes[0]}–${s.holes[1]}: parejas por definir`); return; }
           const tn = s.teams.map(t => t.map(name).join(' + '));
           L.push(`H${s.holes[0]}–${s.holes[1]}: ${tn[0]} ${s.points[0]} – ${s.points[1]} ${tn[1]}${s.complete ? '' : ' (en juego)'}`);
         });
@@ -439,6 +490,7 @@
     WAR_SEGMENTS, WAR_TYPES, ROBIN_SEGMENTS, ROBIN_POINTS,
     defaultBets, strokesOnHole, playingHandicapFor, categoryFor, gameSettings,
     resolvePlayers, makeCtx, achievements, robinPairings, robinGroups,
+    robinPairingsFor, robinPairingOptions, pairingFromPartner, partnerOf,
     computeRobin, computeWar, settle, computeGame, summaryText, fmtMoney
   };
 });
