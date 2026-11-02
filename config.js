@@ -1,17 +1,14 @@
 /* ============================================================
- * config.js — Configuración OPCIONAL de Supabase
+ * config.js — Proyecto de Supabase de la familia
  *
- * Si llenas estos valores, cualquiera que abra la página queda
- * conectado sin necesitar link de invitación. Si los dejas vacíos,
- * cada celular se conecta con el link de invitación o en Ajustes.
+ * La URL y la llave pública (publishable) son seguras de publicar:
+ * por sí solas no dan acceso a nada. El acceso a los datos lo da el
+ * CÓDIGO DE FAMILIA, que va solo en el link de invitación.
  *
- * ⚠️ El repositorio y GitHub Pages son PÚBLICOS: si pones aquí el
- * código de familia, cualquiera que encuentre la página puede ver y
- * editar. Recomendado: deja familyCode vacío y usa el link.
- * La URL y la llave pública (anon/publishable) sí son seguras de publicar.
+ * ⚠️ NO pongas aquí el código de familia: este repositorio es público.
  * ============================================================ */
 window.GOLF_CONFIG = {
-  supabaseUrl: '',
-  supabaseKey: '',
+  supabaseUrl: 'https://ivrurzhzteaosmppwueq.supabase.co',
+  supabaseKey: 'sb_publishable_CVqSOypd-wVCjNsbJfLGbA_3gNUZJ-y',
   familyCode: ''
 };

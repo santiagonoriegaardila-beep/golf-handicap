@@ -209,7 +209,9 @@ const Sync = (() => {
   function inviteLink() {
     if (!Cloud.isConfigured(cfg)) return '';
     const u = new URL(window.location.href.split('?')[0].split('#')[0]);
-    u.searchParams.set('sb', cfg.url); u.searchParams.set('k', cfg.key); u.searchParams.set('familia', cfg.code);
+    const fixed = (window.GOLF_CONFIG || {});
+    if (cfg.url !== fixed.supabaseUrl || cfg.key !== fixed.supabaseKey) { u.searchParams.set('sb', cfg.url); u.searchParams.set('k', cfg.key); }
+    u.searchParams.set('familia', cfg.code);
     return u.toString();
   }
 
