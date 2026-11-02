@@ -1,4 +1,4 @@
-const H = require('./handicap.js');
+const H = require('../handicap.js');
 
 let pass = 0, fail = 0;
 function t(name, got, want, tol = 0.05) {
