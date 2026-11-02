@@ -92,7 +92,7 @@ function render() {
     : 'Handicap · Robin · War';
   syncBadge();
   renderPending = false;
-  view().innerHTML = RENDER[ui.tab]();
+  view().innerHTML = joinBanner() + RENDER[ui.tab]();
 }
 
 function setTab(t) { ui.tab = t; render(); window.scrollTo(0, 0); }
@@ -658,6 +658,22 @@ RENDER.campos = () => {
 /* ============================================================
  * TAB: AJUSTES
  * ============================================================ */
+/* Aviso grande cuando el celular NO está conectado a la familia */
+function joinBanner() {
+  const i = Sync.info();
+  const fixed = window.GOLF_CONFIG || {};
+  if (i.configured || !fixed.supabaseUrl || !fixed.supabaseKey) return '';
+  return `<section class="card join-card">
+    <h2>👨‍👩‍👧 Conéctate a la familia</h2>
+    <p class="hint" style="margin-top:0">Este celular <b>no está conectado</b>: lo que anotes aquí no lo ve nadie más y no ves lo de los demás.
+    Abre el <b>link de invitación</b> que te mandaron o escribe el código de familia:</p>
+    <div class="row" style="margin-top:8px">
+      <input type="text" class="grow" id="join-code" placeholder="Código de familia (ej. golf-Ab12…)" autocomplete="off" autocapitalize="off" spellcheck="false">
+      <button class="btn" data-act="join-family">Conectar</button>
+    </div>
+  </section>`;
+}
+
 function renderSyncCard() {
   const i = Sync.info(); const c = i.config || {};
   const [dot, txt] = SYNC_LABEL[i.status] || ['⚪', i.status];
@@ -932,6 +948,19 @@ const ACT = {
   },
 
   /* --- sincronización --- */
+  'join-family': async () => {
+    const code = ($('#join-code').value || '').trim();
+    const fixed = window.GOLF_CONFIG || {};
+    if (code.length < 8) return toast('El código tiene mínimo 8 caracteres');
+    const cfg = { url: fixed.supabaseUrl, key: fixed.supabaseKey, code };
+    try {
+      if (!(await Cloud.get(cfg))) return toast('Ese código no existe. Revisa mayúsculas y minúsculas.');
+    } catch (e) { return toast('Sin conexión: intenta de nuevo'); }
+    await Sync.configure(cfg);
+    const i = Sync.info();
+    render();
+    toast(i.status === 'en-vivo' ? '¡Conectado a la familia! 🟢' : 'No se pudo conectar: ' + (i.error || i.status));
+  },
   'sync-connect': async () => {
     const url = $('#sync-url').value.trim(), key = $('#sync-key').value.trim(), code = $('#sync-code').value.trim();
     if (!/^https?:\/\//.test(url)) return toast('La URL debe empezar por https://');
@@ -1068,6 +1097,7 @@ document.addEventListener('DOMContentLoaded', () => {
   view().addEventListener('keydown', (e) => {
     if (e.key !== 'Enter') return;
     if (e.target.id === 'new-player') ACT['add-player']();
+    if (e.target.id === 'join-code') ACT['join-family']();
     if (e.target.id === 'new-course') ACT['add-course']();
   });
   view().addEventListener('focusout', () => { setTimeout(() => { if (renderPending && !view().contains(document.activeElement)) render(); }, 50); });
