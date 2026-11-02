@@ -4,7 +4,7 @@
   "description": "Handicap WHS, Robin y War para la familia — app web sin dependencias",
   "private": true,
   "scripts": {
-    "test": "node tests/test_handicap.js && node tests/test_bets.js",
+    "test": "node tests/test_handicap.js && node tests/test_bets.js && node tests/test_sync.js",
     "resumen": "node cli.js resumen examples/estado-ejemplo.json"
   },
   "bin": { "golf": "cli.js" }

@@ -12,7 +12,7 @@
   <div class="brand">
     <span class="logo" aria-hidden="true">⛳</span>
     <div>
-      <h1>Golf en Familia</h1>
+      <h1>Golf en Familia <span class="sync-badge" id="sync-badge"></span></h1>
       <p id="topbar-sub">Handicap · Robin · War</p>
     </div>
   </div>
@@ -29,9 +29,13 @@
 
 <div id="toast" class="toast" role="status" aria-live="polite"></div>
 
-<script src="handicap.js"></script>
-<script src="store.js"></script>
-<script src="bets.js"></script>
-<script src="app.js"></script>
+<script defer src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.min.js"></script>
+<script defer src="config.js"></script>
+<script defer src="handicap.js"></script>
+<script defer src="store.js"></script>
+<script defer src="bets.js"></script>
+<script defer src="cloud.js"></script>
+<script defer src="sync.js"></script>
+<script defer src="app.js"></script>
 </body>
 </html>

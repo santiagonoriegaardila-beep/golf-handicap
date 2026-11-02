@@ -12,6 +12,12 @@
  *   node cli.js validar    <estado.json>                    → revisa campos/marcas/rondas
  *   node cli.js score      <estado.json> <gameId> <playerId> <hoyo> <golpes> [putts] [bunker] [agua]
  *                                                           → escribe un score y guarda el archivo
+ *   node cli.js bajar      <destino.json>                   → descarga la nube a un archivo
+ *   node cli.js subir      <estado.json>                    → sube un archivo a la nube (mezcla)
+ *
+ * En lugar de <estado.json> se puede usar la palabra  nube  para leer/escribir
+ * directo en Supabase (tiempo real con la app). Requiere variables de entorno:
+ *   GOLF_SUPABASE_URL, GOLF_SUPABASE_KEY, GOLF_FAMILY_CODE
  *
  * Salida en stdout; errores en stderr con código 1.
  * ============================================================ */
@@ -20,12 +26,27 @@ const fs = require('fs');
 const path = require('path');
 const Store = require(path.join(__dirname, 'store.js'));
 const Bets = require(path.join(__dirname, 'bets.js'));
+const Cloud = require(path.join(__dirname, 'cloud.js'));
+
+const cloudCfg = () => {
+  const c = { url: process.env.GOLF_SUPABASE_URL, key: process.env.GOLF_SUPABASE_KEY, code: process.env.GOLF_FAMILY_CODE };
+  if (!Cloud.isConfigured(c)) die('para usar "nube" define GOLF_SUPABASE_URL, GOLF_SUPABASE_KEY y GOLF_FAMILY_CODE (≥ 8)');
+  return c;
+};
+let cloudMeta = null; // {rev, base} cuando se leyó de la nube
 
 function die(msg) { process.stderr.write('Error: ' + msg + '\n'); process.exit(1); }
 function out(obj) { process.stdout.write((typeof obj === 'string' ? obj : JSON.stringify(obj, null, 2)) + '\n'); }
 
-function readState(file) {
-  if (!file) die('falta el archivo de estado (.json exportado de la app)');
+async function readState(file) {
+  if (!file) die('falta el archivo de estado (.json exportado de la app) o la palabra "nube"');
+  if (file === 'nube') {
+    let remote;
+    try { remote = await Cloud.get(cloudCfg()); } catch (e) { die(e.message); }
+    if (!remote) die('la familia no existe en la nube todavía');
+    cloudMeta = { rev: remote.rev, base: JSON.parse(JSON.stringify(remote.data)) };
+    return Store.migrate(remote.data);
+  }
   let raw;
   try { raw = JSON.parse(fs.readFileSync(file, 'utf8')); } catch (e) { die('no se pudo leer ' + file + ': ' + e.message); }
   return Store.migrate(raw);
@@ -60,23 +81,33 @@ function validate(state) {
   return { ok: issues.length === 0, issues };
 }
 
+async function writeState(file, s) {
+  if (file === 'nube') {
+    const res = await Cloud.saveMerged(cloudCfg(), cloudMeta.base, s, cloudMeta.rev, 'Hermes');
+    return { rev: res.rev };
+  }
+  fs.writeFileSync(file, JSON.stringify(s, null, 2));
+  return {};
+}
+
 const [, , cmd, file, ...rest] = process.argv;
+(async () => {
 switch (cmd) {
-  case 'resultados': { const s = readState(file); out(Bets.computeGame(s, pickGame(s, rest[0]))); break; }
-  case 'resumen':    { const s = readState(file); out(Bets.summaryText(Bets.computeGame(s, pickGame(s, rest[0])))); break; }
+  case 'resultados': { const s = await readState(file); out(Bets.computeGame(s, pickGame(s, rest[0]))); break; }
+  case 'resumen':    { const s = await readState(file); out(Bets.summaryText(Bets.computeGame(s, pickGame(s, rest[0])))); break; }
   case 'handicap': {
-    const s = readState(file);
+    const s = await readState(file);
     out(s.players.map(p => ({ playerId: p.id, name: p.name, ...Store.playerIndex(s, p.id) })));
     break;
   }
   case 'rondas': {
-    const s = readState(file);
+    const s = await readState(file);
     out(s.games.map(g => ({ id: g.id, date: g.date, status: g.status, courseId: g.courseId, players: g.players.map(p => p.playerId) })));
     break;
   }
-  case 'validar': { const r = validate(readState(file)); out(r); process.exit(r.ok ? 0 : 1); break; }
+  case 'validar': { const r = validate(await readState(file)); out(r); process.exit(r.ok ? 0 : 1); break; }
   case 'score': {
-    const s = readState(file);
+    const s = await readState(file);
     const [gameId, playerId, hole, strokes, putts, bunker, water] = rest;
     const g = pickGame(s, gameId);
     if (!g.scores[playerId]) die('jugador no está en la ronda: ' + playerId);
@@ -89,11 +120,30 @@ switch (cmd) {
       putts: putts == null || putts === '' ? null : Number(putts),
       bunker: yes(bunker), water: yes(water)
     };
-    fs.writeFileSync(file, JSON.stringify(s, null, 2));
-    out({ ok: true, gameId: g.id, playerId, hole: h, score: g.scores[playerId][h - 1] });
+    const w = await writeState(file, s);
+    out({ ok: true, gameId: g.id, playerId, hole: h, score: g.scores[playerId][h - 1], ...w });
+    break;
+  }
+  case 'bajar': {
+    if (!file) die('falta el archivo destino');
+    const remote = await Cloud.get(cloudCfg());
+    if (!remote) die('la familia no existe en la nube todavía');
+    fs.writeFileSync(file, JSON.stringify(Store.migrate(remote.data), null, 2));
+    out({ ok: true, rev: remote.rev, file });
+    break;
+  }
+  case 'subir': {
+    const local = await readState(file);
+    const cfg = cloudCfg();
+    const remote = await Cloud.get(cfg);
+    const res = remote
+      ? await Cloud.saveMerged(cfg, remote.data, Store.merge3(remote.data, local, remote.data), remote.rev, 'Hermes')
+      : await Cloud.saveMerged(cfg, null, local, 0, 'Hermes');
+    out({ ok: true, rev: res.rev });
     break;
   }
   default:
     out(fs.readFileSync(__filename, 'utf8').split('\n').slice(1, 20).join('\n'));
     process.exit(cmd ? 1 : 0);
 }
+})().catch(e => die(e.message));

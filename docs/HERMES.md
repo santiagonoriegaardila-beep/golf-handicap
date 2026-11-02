@@ -9,24 +9,56 @@ Hay tres formas de integrarse; todas usan el mismo motor (`handicap.js` → `sto
 | **Módulos Node** (`require('./bets.js')`) | El agente escribe su propio script. |
 | **`window.GolfApp`** | El agente maneja un navegador con la app abierta. |
 
-No hay servidor ni base de datos: el estado completo es **un solo JSON** guardado en `localStorage` (clave `golf-familia-v2`).
-El usuario lo exporta en *Ajustes → Exportar JSON* y lo importa en *Ajustes → Importar*.
+El estado completo es **un solo JSON**. Vive en **Supabase** (una fila por familia, ver `supabase/schema.sql` y `docs/SUPABASE.md`)
+y cada celular guarda una copia en `localStorage` (clave `golf-familia-v2`) para trabajar sin señal.
+Los cambios que haga el agente en la nube aparecen en los celulares de la familia en segundos.
+
+### Credenciales para el agente
+
+```bash
+export GOLF_SUPABASE_URL="https://xxxx.supabase.co"
+export GOLF_SUPABASE_KEY="<anon / publishable key>"
+export GOLF_FAMILY_CODE="<código de familia>"
+```
+
+Con eso, en cualquier comando del CLI se usa la palabra **`nube`** en lugar de un archivo.
+
+### API HTTP directa (sin Node)
+
+```bash
+# leer → {rev, data, updated_at, updated_by} | null
+curl -s "$GOLF_SUPABASE_URL/rest/v1/rpc/golf_get" -H "apikey: $GOLF_SUPABASE_KEY" \
+  -H "Content-Type: application/json" -d "{\"p_code\":\"$GOLF_FAMILY_CODE\"}"
+
+# guardar → {ok:true, rev} | {ok:false, rev, data}  (si ok=false: mezclar con data y reintentar con ese rev)
+curl -s "$GOLF_SUPABASE_URL/rest/v1/rpc/golf_save" -H "apikey: $GOLF_SUPABASE_KEY" \
+  -H "Content-Type: application/json" \
+  -d "{\"p_code\":\"$GOLF_FAMILY_CODE\",\"p_rev\":12,\"p_data\":{…estado completo…},\"p_by\":\"Hermes\"}"
+```
+(Las llaves `anon` clásicas, que empiezan por `eyJ`, también van en `Authorization: Bearer …`.)
+
+**Siempre** guardar con el `rev` que se leyó. Nunca sobrescribir sin control de versión: borraría lo que la familia anotó entre medio.
+Lo más seguro es usar el CLI o `Cloud.saveMerged`, que ya mezclan y reintentan.
 
 ---
 
 ## 1. CLI
 
+`<estado.json>` puede ser un archivo o la palabra `nube`.
+
 ```bash
-node cli.js resultados estado.json [gameId|ultima]   # JSON con todo calculado
+node cli.js resultados nube [gameId|ultima]          # JSON con todo calculado
 node cli.js resumen    estado.json [gameId|ultima]   # texto listo para WhatsApp
 node cli.js handicap   estado.json                    # index de cada jugador
 node cli.js rondas     estado.json                    # lista de rondas
 node cli.js validar    estado.json                    # chequea campos/marcas/rondas (exit 1 si hay problemas)
-node cli.js score      estado.json <gameId> <playerId> <hoyo 1-18> <golpes> [putts] [bunker si/no] [agua si/no]
+node cli.js score      nube <gameId|ultima> <playerId> <hoyo 1-18> <golpes> [putts] [bunker si/no] [agua si/no]
+node cli.js bajar      copia.json                     # descarga la nube a un archivo
+node cli.js subir      estado.json                    # sube un archivo a la nube (mezcla, no borra)
 ```
 
 - Salida en stdout (JSON salvo `resumen`), errores en stderr con código 1.
-- `score` **modifica el archivo** y lo guarda; luego el usuario lo importa en la app.
+- `score` sobre `nube` queda visible en la app al instante; sobre un archivo, lo modifica en disco.
 - Ejemplo: `node cli.js resumen examples/estado-ejemplo.json`
 
 ## 2. Módulos Node
@@ -35,9 +67,15 @@ node cli.js score      estado.json <gameId> <playerId> <hoyo 1-18> <golpes> [put
 const Store = require('./store.js');   // migrate, playerIndex, upsertRound, TEE_PRESETS...
 const Bets  = require('./bets.js');    // computeGame, summaryText, defaultBets, strokesOnHole...
 
-const state  = Store.migrate(JSON.parse(fs.readFileSync('estado.json', 'utf8')));
-const result = Bets.computeGame(state, state.games[0]);
-console.log(Bets.summaryText(result));
+const Cloud = require('./cloud.js');   // get, save, saveMerged
+const cfg = { url: process.env.GOLF_SUPABASE_URL, key: process.env.GOLF_SUPABASE_KEY, code: process.env.GOLF_FAMILY_CODE };
+
+const remote = await Cloud.get(cfg);                 // {rev, data}
+const state  = Store.migrate(remote.data);
+console.log(Bets.summaryText(Bets.computeGame(state, state.games.at(-1))));
+
+state.players.push({ id: Store.uid('p'), name: 'Tío Pepe', manualIndex: 20, defaultTee: 'blancas' });
+await Cloud.saveMerged(cfg, remote.data, state, remote.rev, 'Hermes');   // mezcla si alguien guardó antes
 ```
 
 Todas las funciones son puras (no tocan disco ni DOM). `Store.migrate` acepta estados viejos (v1) y siempre devuelve v2.
@@ -52,6 +90,8 @@ GolfApp.setScore(gameId, playerId, 7, { strokes: 4, putts: 2, bunker: true })   
 GolfApp.results(gameId?)                   // = Bets.computeGame
 GolfApp.summary(gameId?)                   // texto WhatsApp
 GolfApp.goToTab('apuestas')                // ronda | apuestas | jugadores | campos | ajustes
+GolfApp.sync.info()                        // {status:'en-vivo'|'sin-conexion'|…, rev, lastBy, …}
+GolfApp.sync.now()                         // forzar sincronización
 ```
 
 ---
@@ -93,7 +133,6 @@ GolfApp.goToTab('apuestas')                // ronda | apuestas | jugadores | cam
     {
       "id": "g_ejemplo", "date": "2026-11-01", "courseId": "c_club",
       "status": "en juego",            // "en juego" | "terminada"
-      "currentHole": 0,                // 0–17 (solo UI)
       "settings": { …copia de settings al empezar… },
       "players": [
         { "playerId": "p_santi", "teeId": "azules",
@@ -156,11 +195,12 @@ GolfApp.goToTab('apuestas')                // ronda | apuestas | jugadores | cam
 
 | Pedido del usuario | Qué hacer |
 |---|---|
-| “¿Cómo va la ronda?” | `node cli.js resumen estado.json` |
-| “Anota: Santi hizo 5 con 2 putts en el 7, salió del bunker” | `node cli.js score estado.json ultima p_santi 7 5 2 si no` |
-| “¿Cuánto debe Papá?” | `resultados` → `totals.p_papa` y `transfers` |
-| “¿Cuál es el handicap de Mamá?” | `node cli.js handicap estado.json` |
-| “Cambia la base del robin a 10.000” | editar `games[i].bets.robin.pointValue` → `validar` |
+| “¿Cómo va la ronda?” | `node cli.js resumen nube` |
+| “Anota: Santi hizo 5 con 2 putts en el 7, salió del bunker” | `node cli.js rondas nube` (ids) → `node cli.js score nube ultima p_santi 7 5 2 si no` |
+| “¿Cuánto debe Papá?” | `resultados nube` → `totals.<id>` y `transfers` |
+| “¿Cuál es el handicap de Mamá?” | `node cli.js handicap nube` |
+| “Cambia la base del robin a 10.000” | módulo Node: leer, editar `games[i].bets.robin.pointValue`, `Cloud.saveMerged` |
+| “Haz un respaldo” | `node cli.js bajar respaldo-$(date +%F).json` |
 
 ## 7. Archivos
 
@@ -169,8 +209,11 @@ GolfApp.goToTab('apuestas')                // ronda | apuestas | jugadores | cam
 | `handicap.js` | Fórmulas WHS (AGS, diferencial, index, course/playing handicap). |
 | `store.js` | Esquema, migración v1→v2, marcas, index del jugador, tarjetas. |
 | `bets.js` | Ventajas por hoyo, Robin, War, liquidación, resumen de texto. |
+| `cloud.js` | Cliente Supabase (`golf_get` / `golf_save`), navegador y Node. |
+| `sync.js` | Sincronización en vivo del navegador (realtime, offline, mezcla). |
+| `supabase/schema.sql` | Tablas y funciones de la base de datos. |
 | `app.js` / `index.html` / `styles.css` | Interfaz (solo dibuja; no calcula). |
 | `cli.js` | CLI para agentes. |
-| `tests/` | `npm test`. Toda regla nueva debe llevar prueba. |
+| `tests/` | `npm test`. Toda regla nueva debe llevar prueba. `tests/mock_supabase.js` simula Supabase. |
 | `docs/REGLAS.md` | Reglas de juego en lenguaje humano. |
 | `examples/estado-ejemplo.json` | Estado completo con una ronda de 4 jugadores. |

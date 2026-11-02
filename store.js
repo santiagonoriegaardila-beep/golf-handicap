@@ -170,7 +170,66 @@
     return r;
   }
 
+  /* ---------------- Merge de 3 vías (sincronización) ----------------
+   * base = último estado sincronizado, local = este dispositivo, remote = la nube.
+   * - Objetos: llave por llave.
+   * - Arreglos de objetos con `id` (players, games…): por id, respetando altas y bajas.
+   * - Arreglos del mismo largo (scores[18], pars…): posición por posición.
+   * - Valores simples: si local cambió respecto a base gana local, si no gana remote.
+   * Así dos personas anotando hoyos/jugadores distintos al tiempo no se pisan. */
+  const isObj = (v) => v !== null && typeof v === 'object';
+  function deepEq(a, b) {
+    if (a === b) return true;
+    if (!isObj(a) || !isObj(b) || Array.isArray(a) !== Array.isArray(b)) return false;
+    const ka = Object.keys(a), kb = Object.keys(b);
+    if (ka.length !== kb.length) return false;
+    return ka.every(k => deepEq(a[k], b[k]));
+  }
+  const cloneJ = (v) => (v === undefined ? undefined : JSON.parse(JSON.stringify(v)));
+  const hasIds = (arr) => Array.isArray(arr) && arr.length > 0 && arr.every(x => isObj(x) && x.id != null);
+
+  function merge3(base, local, remote) {
+    if (deepEq(local, remote)) return cloneJ(local);
+    if (deepEq(local, base)) return cloneJ(remote);
+    if (deepEq(remote, base)) return cloneJ(local);
+
+    if (Array.isArray(local) && Array.isArray(remote)) {
+      const b = Array.isArray(base) ? base : [];
+      if ((hasIds(local) || !local.length) && (hasIds(remote) || !remote.length) && (local.length || remote.length)) {
+        const byId = (arr) => new Map(arr.map(x => [x.id, x]));
+        const B = byId(hasIds(b) ? b : []), L = byId(local), R = byId(remote);
+        const order = [...remote.map(x => x.id), ...local.map(x => x.id).filter(id => !R.has(id))];
+        const out = [];
+        order.forEach(id => {
+          const inB = B.has(id), inL = L.has(id), inR = R.has(id);
+          if (inL && inR) out.push(merge3(B.get(id), L.get(id), R.get(id)));
+          else if (inR && !inL) { if (!inB || !deepEq(R.get(id), B.get(id))) out.push(cloneJ(R.get(id))); } // borrado local
+          else if (inL && !inR) { if (!inB || !deepEq(L.get(id), B.get(id))) out.push(cloneJ(L.get(id))); } // borrado remoto
+        });
+        return out;
+      }
+      if (local.length === remote.length) {
+        return local.map((x, i) => merge3(b[i], x, remote[i]));
+      }
+      return cloneJ(local);
+    }
+
+    if (isObj(local) && isObj(remote) && !Array.isArray(local) && !Array.isArray(remote)) {
+      const b = isObj(base) && !Array.isArray(base) ? base : {};
+      const out = {};
+      new Set([...Object.keys(remote), ...Object.keys(local)]).forEach(k => {
+        const inL = k in local, inR = k in remote, inB = k in b;
+        if (inL && inR) out[k] = merge3(b[k], local[k], remote[k]);
+        else if (inR) { if (!inB || !deepEq(remote[k], b[k])) out[k] = cloneJ(remote[k]); }
+        else if (inL) { if (!inB || !deepEq(local[k], b[k])) out[k] = cloneJ(local[k]); }
+      });
+      return out;
+    }
+    return cloneJ(deepEq(local, base) ? remote : local);
+  }
+
   return {
+    deepEq, merge3,
     STORE_KEY, LEGACY_KEY, SCHEMA_VERSION, TEE_PRESETS, DEFAULT_PARS, DEFAULT_HOLE_HCPS, DEFAULT_SETTINGS,
     uid, makeTee, sampleCourse, defaultState, migrate, load, save,
     teeOf, parTotal, playerIndex, recalcPlayerRounds, upsertRound

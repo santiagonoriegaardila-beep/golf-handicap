@@ -26,7 +26,36 @@ const view = () => $('#view');
 const today = () => new Date().toISOString().slice(0, 10);
 const clone = (o) => JSON.parse(JSON.stringify(o));
 
-function persist() { Store.save(storage || memStore, state); }
+function persist() { Store.save(storage || memStore, state); Sync.changed(); }
+
+/* Hoyo actual: es de cada celular (no se sincroniza) */
+const UI_KEY = 'golf-ui';
+const uiSaved = (() => { try { return JSON.parse((storage || memStore).getItem(UI_KEY)) || {}; } catch (e) { return {}; } })();
+ui.holes = uiSaved.holes || {};
+function saveUi() { try { (storage || memStore).setItem(UI_KEY, JSON.stringify({ holes: ui.holes })); } catch (e) { /* */ } }
+const curHole = (g) => Math.min(17, Math.max(0, ui.holes[g.id] ?? 0));
+
+/* Llega un estado nuevo desde la nube */
+let renderPending = false;
+function applyRemote(next, meta) {
+  state = next;
+  Store.save(storage || memStore, state);
+  const a = document.activeElement;
+  const typing = a && view().contains(a) && /^(INPUT|SELECT|TEXTAREA)$/.test(a.tagName) && a.type !== 'checkbox';
+  if (typing) { renderPending = true; return; }   // no interrumpir a quien está escribiendo
+  render();
+  if (meta && meta.by) toast(`↻ Actualizado por ${meta.by}`);
+}
+
+const SYNC_LABEL = {
+  'local': ['⚪', 'Solo este celular'], 'conectando': ['🟡', 'Conectando…'], 'en-vivo': ['🟢', 'En vivo'],
+  'guardando': ['🟡', 'Guardando…'], 'sin-conexion': ['🟠', 'Sin conexión · se guarda al volver'], 'error': ['🔴', 'Error de sincronización']
+};
+function syncBadge() {
+  const i = Sync.info(); const [dot, txt] = SYNC_LABEL[i.status] || ['⚪', i.status];
+  const el = $('#sync-badge'); if (!el) return;
+  el.textContent = `${dot} ${txt}`; el.title = i.error || '';
+}
 function esc(s) {
   return String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
 }
@@ -59,8 +88,10 @@ function render() {
   document.querySelectorAll('#tabs button').forEach(b => b.classList.toggle('on', b.dataset.tab === ui.tab));
   const g = activeGame();
   $('#topbar-sub').textContent = g
-    ? `Ronda en juego · ${courseById(g.courseId)?.name || ''} · Hoyo ${g.currentHole + 1}`
+    ? `Ronda en juego · ${courseById(g.courseId)?.name || ''} · Hoyo ${curHole(g) + 1}`
     : 'Handicap · Robin · War';
+  syncBadge();
+  renderPending = false;
   view().innerHTML = RENDER[ui.tab]();
 }
 
@@ -229,7 +260,7 @@ function holeState(g, h) {
 
 function renderPlay(g) {
   const res = Bets.computeGame(state, g);
-  const h = g.currentHole;
+  const h = curHole(g);
   const course = courseById(g.courseId);
 
   // Equipo robin del hoyo actual (para colorear tarjetas)
@@ -627,9 +658,47 @@ RENDER.campos = () => {
 /* ============================================================
  * TAB: AJUSTES
  * ============================================================ */
+function renderSyncCard() {
+  const i = Sync.info(); const c = i.config || {};
+  const [dot, txt] = SYNC_LABEL[i.status] || ['⚪', i.status];
+  const who = state.players.map(p => `<option ${c.me === p.name ? 'selected' : ''}>${esc(p.name)}</option>`).join('');
+  if (i.configured) {
+    return `<section class="card full-span">
+      <h2>☁️ Sincronización <span class="spacer"></span><span class="pill ${i.status === 'en-vivo' ? 'ok' : 'live'}" id="sync-status">${dot} ${txt}</span></h2>
+      <p class="hint" style="margin-top:0">Conectado a la familia <b>${esc(c.code.slice(0, 2))}••••••</b>${i.realtime ? ' · avisos instantáneos activos' : ' · revisando cada 20 s'}.
+      ${i.lastAt ? `Último cambio: ${esc(i.lastBy || 'alguien')} · ${new Date(i.lastAt).toLocaleString('es-CO')}` : ''}
+      ${i.error ? `<br><span style="color:var(--neg)">${esc(i.error)}</span>` : ''}</p>
+      <div class="row" style="margin-top:8px">
+        <label class="f">¿Quién usa este celular?<select data-ch="sync-me"><option value="">—</option>${who}</select></label>
+      </div>
+      <div class="row" style="margin-top:10px">
+        <button class="btn grow" data-act="sync-invite">🔗 Link de invitación</button>
+        <button class="btn ghost grow" data-act="sync-now">↻ Sincronizar ya</button>
+      </div>
+      <div class="row" style="margin-top:8px">
+        <button class="btn ghost sm" data-act="sync-overwrite">⬆️ Reemplazar la nube con este celular</button>
+        <button class="btn danger sm" data-act="sync-disconnect">Desconectar</button>
+      </div>
+      <p class="hint">Manda el link por WhatsApp a la familia: al abrirlo quedan conectados. <b>Quien tenga el link puede ver y editar</b>, compártelo solo con la familia.</p>
+    </section>`;
+  }
+  return `<section class="card full-span">
+    <h2>☁️ Sincronización <span class="spacer"></span><span class="pill" id="sync-status">${dot} ${txt}</span></h2>
+    <p class="hint" style="margin-top:0">Conecta la app a Supabase para que toda la familia vea la misma información en tiempo real.
+    Lo más fácil: abre el <b>link de invitación</b> que te mande quien ya está conectado. Para configurarlo la primera vez sigue <code>docs/SUPABASE.md</code>.</p>
+    <div class="row" style="margin-top:8px">
+      <label class="f" style="flex:2 1 220px">URL del proyecto<input type="text" id="sync-url" placeholder="https://xxxx.supabase.co" value="${esc(c.url || '')}" autocomplete="off"></label>
+      <label class="f" style="flex:2 1 220px">Llave pública (anon / publishable)<input type="text" id="sync-key" placeholder="eyJ… o sb_publishable_…" autocomplete="off"></label>
+      <label class="f">Código de familia (mín. 8)<input type="text" id="sync-code" placeholder="ej. noriega-golf-2026" value="${esc(c.code || '')}" autocomplete="off"></label>
+    </div>
+    <button class="btn" data-act="sync-connect" style="margin-top:10px">Conectar</button>
+    <p class="hint">Si la familia aún no existe en la nube, se crea con los datos de este celular. Si ya existe, este celular descarga la de la nube (lo de aquí queda respaldado).</p>
+  </section>`;
+}
+
 RENDER.ajustes = () => {
   const s = state.settings;
-  return `<div class="grid2">
+  return `${renderSyncCard()}<div class="grid2">
   <section class="card">
     <h2>⚙️ Reglas de la familia</h2>
     <div class="row">
@@ -654,8 +723,8 @@ RENDER.ajustes = () => {
       <button class="btn ghost grow" data-act="copy-json">📋 Copiar JSON</button>
       <label class="btn ghost grow" style="cursor:pointer">⬆️ Importar<input type="file" accept="application/json,.json" data-ch="import" hidden></label>
     </div>
-    <p class="hint">Todo se guarda en este dispositivo. Exporta el JSON para pasarlo a otro celular o a tu agente <b>Hermes</b>
-    (formato en <code>docs/HERMES.md</code>). ${storage ? '' : '<b style="color:var(--neg)">⚠️ El almacenamiento está bloqueado: los datos se pierden al cerrar.</b>'}</p>
+    <p class="hint">${Sync.info().configured ? 'Los datos viven en la nube (Supabase) y este celular guarda una copia para usar sin señal.' : 'Por ahora todo se guarda solo en este celular: conecta la sincronización arriba.'}
+    Exportar el JSON sirve como respaldo o para tu agente <b>Hermes</b> (ver <code>docs/HERMES.md</code>). ${storage ? '' : '<b style="color:var(--neg)">⚠️ El almacenamiento está bloqueado: los datos se pierden al cerrar.</b>'}</p>
     <h3>Rondas guardadas</h3>
     <ul class="list">${[...state.games].sort((a, b) => (b.date || '').localeCompare(a.date || '')).map(g => `<li>
       <span class="name">${g.date} · ${esc(courseById(g.courseId)?.name || '?')}<br><small class="muted">${g.players.map(p => pName(p.playerId)).map(esc).join(', ')}</small></span>
@@ -693,7 +762,7 @@ const ACT = {
     const groups = [];
     for (let i = 0; i + 4 <= ids.length; i += 4) groups.push(ids.slice(i, i + 4));
     const game = {
-      id: Store.uid('g'), date: d.date, courseId: d.courseId, status: 'en juego', currentHole: 0,
+      id: Store.uid('g'), date: d.date, courseId: d.courseId, status: 'en juego',
       settings: clone(state.settings),
       players: d.players.map(p => ({
         playerId: p.playerId, teeId: p.teeId,
@@ -715,10 +784,10 @@ const ACT = {
   goto: (el) => {
     const g = activeGame(); const h = +el.dataset.h;
     if (!g || h < 0 || h > 17) return;
-    g.currentHole = h; persist(); render();
+    ui.holes[g.id] = h; saveUi(); render();
   },
   step: (el) => {
-    const g = activeGame(); const h = g.currentHole; const pid = el.dataset.pid; const k = el.dataset.k; const d = +el.dataset.d;
+    const g = activeGame(); const h = curHole(g); const pid = el.dataset.pid; const k = el.dataset.k; const d = +el.dataset.d;
     const course = courseById(g.courseId);
     const gp = g.players.find(p => p.playerId === pid);
     const par = Store.teeOf(course, gp.teeId).pars[h];
@@ -733,7 +802,7 @@ const ACT = {
     persist(); render();
   },
   par: (el) => {
-    const g = activeGame(); const h = g.currentHole; const pid = el.dataset.pid;
+    const g = activeGame(); const h = curHole(g); const pid = el.dataset.pid;
     const gp = g.players.find(p => p.playerId === pid);
     const par = Store.teeOf(courseById(g.courseId), gp.teeId).pars[h];
     const prev = g.scores[pid][h] || {};
@@ -741,10 +810,10 @@ const ACT = {
     persist(); render();
   },
   clear: (el) => {
-    const g = activeGame(); g.scores[el.dataset.pid][g.currentHole] = null; persist(); render();
+    const g = activeGame(); g.scores[el.dataset.pid][curHole(g)] = null; persist(); render();
   },
   flag: (el) => {
-    const g = activeGame(); const h = g.currentHole; const pid = el.dataset.pid; const k = el.dataset.k;
+    const g = activeGame(); const h = curHole(g); const pid = el.dataset.pid; const k = el.dataset.k;
     const s = g.scores[pid][h] || (g.scores[pid][h] = { strokes: null, putts: null, bunker: false, water: false });
     s[k] = !s[k];
     persist(); render();
@@ -862,6 +931,32 @@ const ACT = {
     persist(); render();
   },
 
+  /* --- sincronización --- */
+  'sync-connect': async () => {
+    const url = $('#sync-url').value.trim(), key = $('#sync-key').value.trim(), code = $('#sync-code').value.trim();
+    if (!/^https?:\/\//.test(url)) return toast('La URL debe empezar por https://');
+    if (!key) return toast('Falta la llave pública');
+    if (code.length < 8) return toast('El código de familia necesita mínimo 8 caracteres');
+    await Sync.configure({ url, key, code });
+    render();
+    toast(Sync.info().status === 'en-vivo' ? '¡Conectado! 🟢' : 'No se pudo conectar: ' + Sync.info().error);
+  },
+  'sync-disconnect': () => {
+    if (!confirm('¿Desconectar este celular? Los datos quedan aquí, pero dejan de sincronizarse.')) return;
+    Sync.disconnect(); render();
+  },
+  'sync-now': async () => { await Sync.syncNow(); render(); toast('Sincronizado'); },
+  'sync-invite': async () => {
+    const link = Sync.inviteLink();
+    try { await navigator.clipboard.writeText(link); toast('Link copiado — mándalo por WhatsApp'); }
+    catch (e) { prompt('Copia este link:', link); }
+  },
+  'sync-overwrite': async () => {
+    if (!confirm('Esto reemplaza los datos de TODA la familia con los de este celular (queda copia en el historial). ¿Seguro?')) return;
+    try { await Sync.overwriteCloud(); toast('Nube actualizada'); } catch (e) { toast(e.message); }
+    render();
+  },
+
   /* --- ajustes --- */
   'open-game': (el) => { ui.viewGameId = el.dataset.id; setTab('apuestas'); },
   export: () => {
@@ -905,6 +1000,7 @@ const CH = {
   },
   'draft-war-on': (el) => { ui.draft.bets.war.enabled = el.checked; render(); },
   'draft-war': (el) => { ui.draft.bets.war[el.dataset.k][el.dataset.s] = Number(el.value) || 0; },
+  'sync-me': (el) => { Sync.setMe(el.value); toast('Guardado'); },
   'view-game': (el) => { ui.viewGameId = el.value; render(); },
   player: (el) => {
     const p = playerById(el.dataset.id); const k = el.dataset.k;
@@ -974,8 +1070,18 @@ document.addEventListener('DOMContentLoaded', () => {
     if (e.target.id === 'new-player') ACT['add-player']();
     if (e.target.id === 'new-course') ACT['add-course']();
   });
+  view().addEventListener('focusout', () => { setTimeout(() => { if (renderPending && !view().contains(document.activeElement)) render(); }, 50); });
   if (activeGame()) ui.tab = 'ronda';
   render();
+  Sync.init({
+    getState: () => state,
+    setState: applyRemote,
+    onStatus: (i) => {
+      syncBadge();
+      const el = $('#sync-status'); const [dot, txt] = SYNC_LABEL[i.status] || ['⚪', i.status];
+      if (el) el.textContent = `${dot} ${txt}`;
+    }
+  }, storage || memStore);
 });
 
 /* ============================================================
@@ -998,5 +1104,6 @@ window.GolfApp = {
     g.scores[playerId][hole - 1] = { strokes: null, putts: null, bunker: false, water: false, ...(g.scores[playerId][hole - 1] || {}), ...score };
     persist(); render(); return g.scores[playerId][hole - 1];
   },
-  goToTab: (t) => setTab(t)
+  goToTab: (t) => setTab(t),
+  sync: { info: () => Sync.info(), now: () => Sync.syncNow(), inviteLink: () => Sync.inviteLink() }
 };
