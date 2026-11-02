@@ -1,0 +1,802 @@
+{
+  "version": 2,
+  "settings": {
+    "allowance": 1,
+    "highHcpThreshold": 18,
+    "strokeMode": "full",
+    "currency": "$"
+  },
+  "players": [
+    {
+      "id": "p_santi",
+      "name": "Santi",
+      "manualIndex": 8.4,
+      "defaultTee": "azules"
+    },
+    {
+      "id": "p_papa",
+      "name": "Papá",
+      "manualIndex": 14.2,
+      "defaultTee": "blancas"
+    },
+    {
+      "id": "p_juan",
+      "name": "Juan",
+      "manualIndex": 22.5,
+      "defaultTee": "blancas"
+    },
+    {
+      "id": "p_mama",
+      "name": "Mamá",
+      "manualIndex": 26,
+      "defaultTee": "rojas"
+    }
+  ],
+  "courses": [
+    {
+      "id": "c_club",
+      "name": "Mi Club (ejemplo — edita los datos)",
+      "tees": [
+        {
+          "id": "negras",
+          "name": "Negras",
+          "color": "#1c1c1c",
+          "cr": 74.2,
+          "slope": 138,
+          "pars": [
+            4,
+            4,
+            3,
+            4,
+            5,
+            4,
+            4,
+            3,
+            5,
+            4,
+            4,
+            3,
+            4,
+            5,
+            4,
+            4,
+            3,
+            5
+          ],
+          "holeHcps": [
+            11,
+            5,
+            15,
+            1,
+            13,
+            9,
+            17,
+            7,
+            3,
+            18,
+            4,
+            14,
+            6,
+            12,
+            16,
+            2,
+            10,
+            8
+          ]
+        },
+        {
+          "id": "azules",
+          "name": "Azules",
+          "color": "#1f5fbf",
+          "cr": 72.6,
+          "slope": 133,
+          "pars": [
+            4,
+            4,
+            3,
+            4,
+            5,
+            4,
+            4,
+            3,
+            5,
+            4,
+            4,
+            3,
+            4,
+            5,
+            4,
+            4,
+            3,
+            5
+          ],
+          "holeHcps": [
+            11,
+            5,
+            15,
+            1,
+            13,
+            9,
+            17,
+            7,
+            3,
+            18,
+            4,
+            14,
+            6,
+            12,
+            16,
+            2,
+            10,
+            8
+          ]
+        },
+        {
+          "id": "blancas",
+          "name": "Blancas",
+          "color": "#f2f2f2",
+          "cr": 71,
+          "slope": 128,
+          "pars": [
+            4,
+            4,
+            3,
+            4,
+            5,
+            4,
+            4,
+            3,
+            5,
+            4,
+            4,
+            3,
+            4,
+            5,
+            4,
+            4,
+            3,
+            5
+          ],
+          "holeHcps": [
+            11,
+            5,
+            15,
+            1,
+            13,
+            9,
+            17,
+            7,
+            3,
+            18,
+            4,
+            14,
+            6,
+            12,
+            16,
+            2,
+            10,
+            8
+          ]
+        },
+        {
+          "id": "amarillas",
+          "name": "Amarillas",
+          "color": "#f2c200",
+          "cr": 69.4,
+          "slope": 122,
+          "pars": [
+            4,
+            4,
+            3,
+            4,
+            5,
+            4,
+            4,
+            3,
+            5,
+            4,
+            4,
+            3,
+            4,
+            5,
+            4,
+            4,
+            3,
+            5
+          ],
+          "holeHcps": [
+            11,
+            5,
+            15,
+            1,
+            13,
+            9,
+            17,
+            7,
+            3,
+            18,
+            4,
+            14,
+            6,
+            12,
+            16,
+            2,
+            10,
+            8
+          ]
+        },
+        {
+          "id": "rojas",
+          "name": "Rojas",
+          "color": "#c8102e",
+          "cr": 72.8,
+          "slope": 127,
+          "pars": [
+            4,
+            4,
+            3,
+            4,
+            5,
+            4,
+            4,
+            3,
+            5,
+            4,
+            4,
+            3,
+            4,
+            5,
+            4,
+            4,
+            3,
+            5
+          ],
+          "holeHcps": [
+            9,
+            3,
+            17,
+            1,
+            11,
+            7,
+            15,
+            13,
+            5,
+            16,
+            2,
+            14,
+            8,
+            10,
+            18,
+            4,
+            12,
+            6
+          ]
+        }
+      ]
+    }
+  ],
+  "rounds": [],
+  "games": [
+    {
+      "id": "g_ejemplo",
+      "date": "2026-11-01",
+      "courseId": "c_club",
+      "status": "terminada",
+      "currentHole": 17,
+      "settings": {
+        "allowance": 1,
+        "highHcpThreshold": 18,
+        "strokeMode": "full",
+        "currency": "$"
+      },
+      "players": [
+        {
+          "playerId": "p_santi",
+          "teeId": "azules",
+          "index": 8.4,
+          "playingHcp": null,
+          "category": null
+        },
+        {
+          "playerId": "p_papa",
+          "teeId": "blancas",
+          "index": 14.2,
+          "playingHcp": null,
+          "category": null
+        },
+        {
+          "playerId": "p_juan",
+          "teeId": "blancas",
+          "index": 22.5,
+          "playingHcp": null,
+          "category": null
+        },
+        {
+          "playerId": "p_mama",
+          "teeId": "rojas",
+          "index": 26,
+          "playingHcp": null,
+          "category": null
+        }
+      ],
+      "bets": {
+        "robin": {
+          "enabled": true,
+          "pointValue": 5000,
+          "segmentValue": 0,
+          "puttsMode": "suma",
+          "groups": [
+            [
+              "p_santi",
+              "p_papa",
+              "p_juan",
+              "p_mama"
+            ]
+          ]
+        },
+        "war": {
+          "enabled": true,
+          "participants": [],
+          "match": {
+            "front": 10000,
+            "back": 10000,
+            "total": 20000
+          },
+          "medal": {
+            "front": 10000,
+            "back": 10000,
+            "total": 20000
+          },
+          "putts": {
+            "front": 5000,
+            "back": 5000,
+            "total": 10000
+          }
+        }
+      },
+      "scores": {
+        "p_santi": [
+          {
+            "strokes": 5,
+            "putts": 1,
+            "bunker": false,
+            "water": false
+          },
+          {
+            "strokes": 4,
+            "putts": 2,
+            "bunker": false,
+            "water": false
+          },
+          {
+            "strokes": 3,
+            "putts": 2,
+            "bunker": true,
+            "water": false
+          },
+          {
+            "strokes": 4,
+            "putts": 1,
+            "bunker": false,
+            "water": false
+          },
+          {
+            "strokes": 5,
+            "putts": 2,
+            "bunker": false,
+            "water": false
+          },
+          {
+            "strokes": 5,
+            "putts": 1,
+            "bunker": false,
+            "water": false
+          },
+          {
+            "strokes": 5,
+            "putts": 1,
+            "bunker": false,
+            "water": false
+          },
+          {
+            "strokes": 3,
+            "putts": 1,
+            "bunker": false,
+            "water": false
+          },
+          {
+            "strokes": 5,
+            "putts": 1,
+            "bunker": false,
+            "water": false
+          },
+          {
+            "strokes": 5,
+            "putts": 1,
+            "bunker": false,
+            "water": false
+          },
+          {
+            "strokes": 5,
+            "putts": 1,
+            "bunker": false,
+            "water": false
+          },
+          {
+            "strokes": 3,
+            "putts": 2,
+            "bunker": false,
+            "water": false
+          },
+          {
+            "strokes": 5,
+            "putts": 2,
+            "bunker": false,
+            "water": false
+          },
+          {
+            "strokes": 6,
+            "putts": 2,
+            "bunker": false,
+            "water": false
+          },
+          {
+            "strokes": 5,
+            "putts": 1,
+            "bunker": false,
+            "water": false
+          },
+          {
+            "strokes": 6,
+            "putts": 2,
+            "bunker": false,
+            "water": false
+          },
+          {
+            "strokes": 4,
+            "putts": 1,
+            "bunker": false,
+            "water": false
+          },
+          {
+            "strokes": 6,
+            "putts": 2,
+            "bunker": false,
+            "water": false
+          }
+        ],
+        "p_papa": [
+          {
+            "strokes": 4,
+            "putts": 2,
+            "bunker": false,
+            "water": false
+          },
+          {
+            "strokes": 6,
+            "putts": 2,
+            "bunker": false,
+            "water": false
+          },
+          {
+            "strokes": 3,
+            "putts": 2,
+            "bunker": false,
+            "water": true
+          },
+          {
+            "strokes": 4,
+            "putts": 2,
+            "bunker": false,
+            "water": false
+          },
+          {
+            "strokes": 6,
+            "putts": 1,
+            "bunker": true,
+            "water": false
+          },
+          {
+            "strokes": 4,
+            "putts": 2,
+            "bunker": false,
+            "water": false
+          },
+          {
+            "strokes": 4,
+            "putts": 1,
+            "bunker": false,
+            "water": true
+          },
+          {
+            "strokes": 3,
+            "putts": 1,
+            "bunker": false,
+            "water": false
+          },
+          {
+            "strokes": 5,
+            "putts": 2,
+            "bunker": true,
+            "water": false
+          },
+          {
+            "strokes": 4,
+            "putts": 2,
+            "bunker": true,
+            "water": false
+          },
+          {
+            "strokes": 5,
+            "putts": 1,
+            "bunker": false,
+            "water": false
+          },
+          {
+            "strokes": 4,
+            "putts": 2,
+            "bunker": true,
+            "water": false
+          },
+          {
+            "strokes": 4,
+            "putts": 1,
+            "bunker": false,
+            "water": true
+          },
+          {
+            "strokes": 6,
+            "putts": 2,
+            "bunker": false,
+            "water": false
+          },
+          {
+            "strokes": 5,
+            "putts": 1,
+            "bunker": false,
+            "water": false
+          },
+          {
+            "strokes": 5,
+            "putts": 2,
+            "bunker": false,
+            "water": false
+          },
+          {
+            "strokes": 5,
+            "putts": 2,
+            "bunker": false,
+            "water": false
+          },
+          {
+            "strokes": 7,
+            "putts": 2,
+            "bunker": false,
+            "water": false
+          }
+        ],
+        "p_juan": [
+          {
+            "strokes": 4,
+            "putts": 2,
+            "bunker": false,
+            "water": false
+          },
+          {
+            "strokes": 5,
+            "putts": 2,
+            "bunker": false,
+            "water": false
+          },
+          {
+            "strokes": 5,
+            "putts": 1,
+            "bunker": false,
+            "water": false
+          },
+          {
+            "strokes": 6,
+            "putts": 1,
+            "bunker": false,
+            "water": false
+          },
+          {
+            "strokes": 5,
+            "putts": 1,
+            "bunker": true,
+            "water": false
+          },
+          {
+            "strokes": 4,
+            "putts": 2,
+            "bunker": false,
+            "water": false
+          },
+          {
+            "strokes": 5,
+            "putts": 1,
+            "bunker": false,
+            "water": false
+          },
+          {
+            "strokes": 4,
+            "putts": 1,
+            "bunker": false,
+            "water": false
+          },
+          {
+            "strokes": 7,
+            "putts": 1,
+            "bunker": false,
+            "water": false
+          },
+          {
+            "strokes": 4,
+            "putts": 2,
+            "bunker": false,
+            "water": true
+          },
+          {
+            "strokes": 4,
+            "putts": 2,
+            "bunker": false,
+            "water": false
+          },
+          {
+            "strokes": 3,
+            "putts": 1,
+            "bunker": false,
+            "water": true
+          },
+          {
+            "strokes": 5,
+            "putts": 2,
+            "bunker": true,
+            "water": false
+          },
+          {
+            "strokes": 5,
+            "putts": 1,
+            "bunker": false,
+            "water": false
+          },
+          {
+            "strokes": 5,
+            "putts": 2,
+            "bunker": false,
+            "water": false
+          },
+          {
+            "strokes": 6,
+            "putts": 2,
+            "bunker": true,
+            "water": false
+          },
+          {
+            "strokes": 4,
+            "putts": 2,
+            "bunker": false,
+            "water": false
+          },
+          {
+            "strokes": 6,
+            "putts": 1,
+            "bunker": false,
+            "water": false
+          }
+        ],
+        "p_mama": [
+          {
+            "strokes": 6,
+            "putts": 1,
+            "bunker": false,
+            "water": false
+          },
+          {
+            "strokes": 6,
+            "putts": 2,
+            "bunker": false,
+            "water": false
+          },
+          {
+            "strokes": 4,
+            "putts": 1,
+            "bunker": false,
+            "water": false
+          },
+          {
+            "strokes": 6,
+            "putts": 2,
+            "bunker": false,
+            "water": false
+          },
+          {
+            "strokes": 5,
+            "putts": 2,
+            "bunker": false,
+            "water": false
+          },
+          {
+            "strokes": 6,
+            "putts": 2,
+            "bunker": false,
+            "water": false
+          },
+          {
+            "strokes": 6,
+            "putts": 1,
+            "bunker": false,
+            "water": true
+          },
+          {
+            "strokes": 4,
+            "putts": 2,
+            "bunker": false,
+            "water": false
+          },
+          {
+            "strokes": 6,
+            "putts": 2,
+            "bunker": false,
+            "water": false
+          },
+          {
+            "strokes": 4,
+            "putts": 2,
+            "bunker": false,
+            "water": false
+          },
+          {
+            "strokes": 6,
+            "putts": 2,
+            "bunker": true,
+            "water": true
+          },
+          {
+            "strokes": 4,
+            "putts": 1,
+            "bunker": false,
+            "water": false
+          },
+          {
+            "strokes": 4,
+            "putts": 2,
+            "bunker": false,
+            "water": false
+          },
+          {
+            "strokes": 6,
+            "putts": 1,
+            "bunker": false,
+            "water": false
+          },
+          {
+            "strokes": 6,
+            "putts": 2,
+            "bunker": false,
+            "water": true
+          },
+          {
+            "strokes": 5,
+            "putts": 1,
+            "bunker": false,
+            "water": false
+          },
+          {
+            "strokes": 4,
+            "putts": 2,
+            "bunker": false,
+            "water": false
+          },
+          {
+            "strokes": 6,
+            "putts": 1,
+            "bunker": false,
+            "water": false
+          }
+        ]
+      }
+    }
+  ],
+  "activeGameId": null
+}

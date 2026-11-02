@@ -81,21 +81,7 @@ function playingHandicap(courseHcp, allowance = DEFAULT_ALLOWANCE) {
   return Math.round(courseHcp * allowance * 10) / 10;
 }
 
-/* ---------------- Helpers de almacenamiento ---------------- */
-
-const STORE_KEY = 'golf-handicap-v1';
-
-function loadState() {
-  try {
-    return JSON.parse(localStorage.getItem(STORE_KEY)) || { players: [], courses: [], rounds: [] };
-  } catch {
-    return { players: [], courses: [], rounds: [] };
-  }
-}
-
-function saveState(state) {
-  localStorage.setItem(STORE_KEY, JSON.stringify(state));
-}
+/* El almacenamiento (localStorage, migraciones) vive en store.js */
 
 /* Exports para pruebas Node */
 if (typeof module !== 'undefined') {
